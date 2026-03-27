@@ -38,3 +38,17 @@ git push -u origin main
 ```
 
 პირველ push-ზე GitHub შეიძლება მოგთხოვოთ შესვლა (ბრაუზერი ან Personal Access Token).
+
+### რეპო `tiflisi2020-alt/restaurant-hr` (მხოლოდ `restaurant-hr/` საქაღალდის შიგთავსი root-ზე)
+
+ლოკალურ ცვლილებების შემდეგ:
+
+```powershell
+cd "C:\Users\Restaurant Tiflis\Desktop\HR SYSTEM"
+git add -A
+git commit -m "your message"
+git subtree split --prefix=restaurant-hr -b rh-export
+git push restaurant-hr rh-export:main --force
+```
+
+რეპო: [github.com/tiflisi2020-alt/restaurant-hr](https://github.com/tiflisi2020-alt/restaurant-hr)
