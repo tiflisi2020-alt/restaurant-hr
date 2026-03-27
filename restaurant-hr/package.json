@@ -1,7 +1,7 @@
 {
   "name": "restaurant-operations-os",
   "private": true,
-  "description": "Local static server for HRCore (Restaurant Operations OS)",
+  "description": "HRCore — npm start → http://localhost:8080 (folder: restaurant-hr). Supabase Auth: Redirect URLs დაამატეთ http://localhost:8080/**",
   "scripts": {
     "start": "serve -l 8080 -s .",
     "dev": "serve -l 8080 -s ."

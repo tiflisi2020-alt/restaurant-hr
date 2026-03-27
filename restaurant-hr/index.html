@@ -384,6 +384,9 @@ body{background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(108,99,255,0.12
 .auth-card h1{font-size:22px;font-weight:800;margin-bottom:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .auth-card .sub{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
 .auth-err{font-size:12px;color:var(--red);margin-top:8px;min-height:18px}
+.auth-tabs{display:flex;gap:8px;margin-bottom:14px}
+.auth-tab{flex:1;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text2);font-size:12px;font-weight:600;cursor:pointer}
+.auth-tab.on{background:rgba(108,99,255,0.25);border-color:var(--accent);color:var(--accent)}
 .app-shell.hidden{display:none!important}
 .emp-shell{display:none;flex-direction:column;min-height:100vh;padding-bottom:72px}
 .emp-shell.active{display:flex}
@@ -410,15 +413,27 @@ body{background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(108,99,255,0.12
 </head>
 <body>
 
-<!-- LOGIN (PIN — არა Supabase Auth) -->
+<!-- LOGIN: ადმინი PIN (anon) | თანამშრომელი Supabase Auth (ცვლები, საფულე, clock) -->
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
     <h1>HRCore</h1>
     <div class="sub">Restaurant Operations OS</div>
-    <div class="fg"><label class="fl">კოდი (4 ციფრი)</label><input type="password" id="auth-pin" class="fi" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="••••"></div>
-    <button type="button" class="btn btn-accent" style="width:100%;margin-top:8px" onclick="doLogin()">შესვლა</button>
+    <div class="auth-tabs" role="tablist">
+      <button type="button" class="auth-tab on" data-tab="admin" onclick="setAuthTab('admin')">ადმინი (PIN)</button>
+      <button type="button" class="auth-tab" data-tab="emp" onclick="setAuthTab('emp')">თანამშრომელი</button>
+    </div>
+    <div id="auth-panel-admin">
+      <div class="fg"><label class="fl">ადმინის კოდი (4 ციფრი)</label><input type="password" id="auth-pin" class="fi" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="••••"></div>
+      <button type="button" class="btn btn-accent" style="width:100%;margin-top:8px" onclick="doLoginPin()">შესვლა ადმინში</button>
+    </div>
+    <div id="auth-panel-emp" class="hidden">
+      <div class="fg"><label class="fl">ელფოსტა</label><input type="email" id="auth-email" class="fi" autocomplete="username" placeholder="you@restaurant.ge"></div>
+      <div class="fg"><label class="fl">პაროლი</label><input type="password" id="auth-pass" class="fi" autocomplete="current-password" placeholder="••••••••"></div>
+      <button type="button" class="btn btn-accent" style="width:100%;margin-top:8px" onclick="doLoginEmployee()">შესვლა პორტალში</button>
+      <p style="font-size:10px;color:var(--text3);margin-top:12px;line-height:1.5">თანამშრომელს სჭირდება ანგარიში Supabase Auth-ში და <code style="font-size:9px">profiles</code> ჩანაწერი: <code style="font-size:9px">role=employee</code>, <code style="font-size:9px">employee_id</code> = თქვენი id <code style="font-size:9px">employees</code> ცხრილიდან.</p>
+    </div>
     <p class="auth-err" id="auth-err"></p>
-    <p style="font-size:10px;color:var(--text3);margin-top:16px;font-family:'JetBrains Mono',monospace;line-height:1.5">შესვლა მხოლოდ ლოკალური კოდით. მონაცემები Supabase-იდან იტვირთება anon გასაღებით — თუ RLS ჩართულია admin პოლიტიკებით, ცხრილები ცარიელი შეიძლება იყოს (საჭიროა რეალური Auth ან RLS მორგება). ტესტი: <code style="font-size:9px">?skipauth=1</code></p>
+    <p style="font-size:10px;color:var(--text3);margin-top:14px;font-family:'JetBrains Mono',monospace;line-height:1.5">ადმინი: მონაცემები anon გასაღებით (PIN მხოლოდ UI). თანამშრომელი: JWT + RLS — ხედავს მხოლოდ საკუთარ განრიგს/მოთხოვნებს. ტესტი: <code style="font-size:9px">?skipauth=1</code></p>
   </div>
 </div>
 
@@ -901,6 +916,29 @@ const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 const sb=supabase.createClient(SU,SK,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let USER_ROLE=null,MY_EMPLOYEE_ID=null,AUTH_USER=null,DUTY_FILTER=null,EMP_WALLET_ROW=null,schedWeekOffsetEmp=0;
 
+/** file:// არ უშვებს Supabase fetch-ს (CORS). სავალდებულოა http://localhost:8080 (npm start). */
+function isFileProtocol(){return location.protocol==='file:';}
+
+/** ერთჯერადი შემოწმება: პროექტი ხელმიუწვდომელი / ინტერნეტი / Paused */
+async function pingSupabaseOnce(){
+  if(isFileProtocol()){
+    toast('გახსენით აპი არა ფაილიდან, არამედ სერვერით: ფოლდერში restaurant-hr გაუშვით npm start → http://localhost:8080 (file:// Supabase-ს ვერ უკავშირდება).','error',14000);
+    return;
+  }
+  const base=SU.replace(/\/$/,'');
+  try{
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),12000);
+    const res=await fetch(base+'/auth/v1/health',{method:'GET',signal:ctrl.signal});
+    clearTimeout(tid);
+    if(!res.ok)console.warn('Supabase health HTTP',res.status);
+  }catch(e){
+    const reason=e.name==='AbortError'?'დრო ამოიწურა (timeout)':'ქსელი (Failed to fetch / CORS)';
+    toast(`Supabase: ${reason}. შეამოწმეთ: 1) supabase.com → პროექტი არ არის Paused 2) ინტერნეტი, VPN, ანტივირუსი 3) index.html-ში SU/SK იმავე პროექტისაა 4) F12 → Network წითელი მოთხოვნა. URL: ${base}`,'error',16000);
+    console.error('HRCore Supabase ping',e);
+  }
+}
+
 /** true = PIN გამოტოვება (პირდაპირ ადმინი). ?skipauth=1 — იგივე. */
 const DEV_SKIP_LOGIN=false;
 /** 4 ციფრიანი შესვლის კოდი (მხოლოდ UI; ბრაუზერში ჩანს — პროდაქშენში შეცვალე). */
@@ -926,7 +964,15 @@ function shouldToastDevBypass(){
   return false;
 }
 
-async function enterDevAdminBypass(){
+function setAuthTab(t){
+  document.querySelectorAll('.auth-tab').forEach(b=>b.classList.toggle('on',b.getAttribute('data-tab')===t));
+  g('auth-panel-admin')?.classList.toggle('hidden',t!=='admin');
+  g('auth-panel-emp')?.classList.toggle('hidden',t!=='emp');
+  g('auth-err').textContent='';
+}
+
+/** ადმინის UI + anon API (JWT არ უნდა დარჩეს — იგი employee როლს ატარებს) */
+async function enterDevAdminBypassCore(){
   USER_ROLE='admin';
   MY_EMPLOYEE_ID=null;
   AUTH_USER=null;
@@ -935,19 +981,84 @@ async function enterDevAdminBypass(){
   g('app-employee')?.classList.remove('active');
   const ag=g('admin-global-actions');if(ag)ag.style.display='flex';
   if(shouldToastDevBypass())toast('დროებითი რეჟიმი: DEV_SKIP_LOGIN ან skipauth.','info');
-  try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან კავშირი ვერ მოხერხდა — URL/anon გასაღები, ან Supabase SQL-ში გაუშვით supabase-rls-anon-pin-mode.sql (PIN რეჟიმი).','error');}
+  try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან კავშირი ვერ მოხერხდა — URL/anon გასაღები ან SQL (PIN + reference RLS).','error');}
   try{renderCal();}catch(e){console.warn('renderCal',e);}
   try{await refreshNoticesBell();}catch(e){console.warn('refreshNoticesBell',e);}
 }
 
+async function enterDevAdminBypass(){
+  try{await sb.auth.signOut();}catch(e){}
+  await enterDevAdminBypassCore();
+}
+
+/** Supabase სესია: ადმინი (JWT+is_admin) ან თანამშრომელი (ცვლები, საფულე) */
+async function applyAuthenticatedSession(session){
+  if(!session?.user)return false;
+  AUTH_USER=session.user;
+  const{data:prof,error:profErr}=await sb.from('profiles').select('role,employee_id').eq('id',session.user.id).maybeSingle();
+  const ae=g('auth-err');
+  if(profErr){
+    if(ae)ae.textContent=(profErr.message||'შეცდომა')+' — profiles';
+    await sb.auth.signOut();
+    return false;
+  }
+  if(!prof){
+    if(ae)ae.textContent='profiles-ში ჩანაწერი არაა. Authentication → Users-ში შექმენით მომხმარებელი, SQL-ში დაამატეთ profiles (იგივე UUID).';
+    await sb.auth.signOut();
+    return false;
+  }
+  USER_ROLE=prof.role;
+  MY_EMPLOYEE_ID=prof.employee_id;
+  try{sessionStorage.removeItem(HRCORE_PIN_KEY);}catch(e){}
+  g('auth-screen')?.classList.add('hidden');
+  if(prof.role==='admin'){
+    g('app-admin')?.classList.remove('hidden');
+    g('app-employee')?.classList.remove('active');
+    const ag=g('admin-global-actions');if(ag)ag.style.display='flex';
+    try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან შეცდომა','error');}
+    try{renderCal();}catch(e){}
+    try{await refreshNoticesBell();}catch(e){}
+    return true;
+  }
+  if(!MY_EMPLOYEE_ID){
+    if(ae)ae.textContent='თანამშრომლისთვის profiles.employee_id უნდა იყოს employees.id — დაუკავშირეთ HR-მა.';
+    await sb.auth.signOut();
+    return false;
+  }
+  g('app-admin')?.classList.add('hidden');
+  g('app-employee')?.classList.add('active');
+  const ag=g('admin-global-actions');if(ag)ag.style.display='none';
+  const navBtn=document.querySelector('.emp-nav-btn[data-empnav="sched"]');
+  empNav('sched',navBtn);
+  try{await refreshNoticesBell(true);}catch(e){}
+  return true;
+}
+
 async function initAuth(){
-  if(isAppUnlocked()){await enterDevAdminBypass();return;}
+  if(isFileProtocol()){
+    g('auth-screen')?.classList.remove('hidden');
+    g('app-admin')?.classList.add('hidden');
+    g('app-employee')?.classList.remove('active');
+    const ag=g('admin-global-actions');if(ag)ag.style.display='none';
+    const ae=g('auth-err');if(ae)ae.textContent='გახსენით აპი სერვერით: ტერმინალში restaurant-hr → npm start → http://localhost:8080 (index.html ორმაგი კლიკი / file:// არ მუშაობს Supabase-თან).';
+    return;
+  }
+  const{data:{session}}=await sb.auth.getSession();
+  if(session?.user){
+    const ok=await applyAuthenticatedSession(session);
+    if(ok)return;
+  }
+  if(isAppUnlocked()){
+    await enterDevAdminBypass();
+    return;
+  }
   g('auth-screen')?.classList.remove('hidden');
   g('app-admin')?.classList.add('hidden');
   g('app-employee')?.classList.remove('active');
   const ag=g('admin-global-actions');if(ag)ag.style.display='none';
 }
-async function doLogin(){
+
+async function doLoginPin(){
   g('auth-err').textContent='';
   const pin=(g('auth-pin')?.value||'').trim().replace(/\D/g,'');
   if(pin.length!==4){g('auth-err').textContent='შეიყვანეთ 4 ციფრი';return;}
@@ -955,6 +1066,22 @@ async function doLogin(){
   try{sessionStorage.setItem(HRCORE_PIN_KEY,'1');}catch(e){}
   g('auth-pin').value='';
   await enterDevAdminBypass();
+}
+
+async function doLoginEmployee(){
+  g('auth-err').textContent='';
+  const email=(g('auth-email')?.value||'').trim(),pass=g('auth-pass')?.value||'';
+  if(!email||!pass){g('auth-err').textContent='ელფოსტა და პაროლი';return;}
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){
+    let m=error.message||'შესვლა ვერ მოხერხდა';
+    if(/email not confirmed|confirm/i.test(m))m+=' — დაადასტურეთ ელფოსტა ან Dashboard-ში გამორთეთ Email confirm (ტესტი).';
+    g('auth-err').textContent=m;
+    return;
+  }
+  g('auth-pass').value='';
+  const{data:{session}}=await sb.auth.getSession();
+  await applyAuthenticatedSession(session);
 }
 async function doLogout(){
   try{sessionStorage.removeItem(HRCORE_PIN_KEY);sessionStorage.removeItem('hrcore_skip_auth');}catch(e){}
@@ -1062,7 +1189,7 @@ async function loadEmpRequests(){
   const body=g('emp-req-body');if(!body||!MY_EMPLOYEE_ID)return;
   const{data}=await sb.from('requests').select('*').eq('employee_id',MY_EMPLOYEE_ID).order('created_at',{ascending:false}).limit(30);
   const R=data||[];
-  body.innerHTML=R.length?R.map(r=>`<div class="ritem" style="flex-direction:column;align-items:stretch"><div style="font-weight:600">${RL(r.type)}</div><div style="font-size:11px;color:var(--text2)">${r.description||''}</div><div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${fmtD(r.start_date)} ${r.status?'<span class="badge '+(r.status==='approved'?'b-green':r.status==='rejected'?'b-red':'b-yellow')+'" style="margin-left:6px">'+r.status+'</span>':''}</div></div>`).join(''):'<div class="empty">მოთხოვნები არ არის</div>';
+  body.innerHTML=R.length?R.map(r=>`<div class="ritem" style="flex-direction:column;align-items:stretch"><div style="font-weight:600">${RL(r.type)}</div><div style="font-size:11px;color:var(--text2)">${escHtml(r.description||'')}</div><div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${fmtD(r.start_date)} ${r.status?'<span class="badge '+(r.status==='approved'?'b-green':r.status==='rejected'?'b-red':'b-yellow')+'" style="margin-left:6px">'+escHtml(r.status)+'</span>':''}</div></div>`).join(''):'<div class="empty">მოთხოვნები არ არის</div>';
 }
 async function saveEmpReq(){
   if(!MY_EMPLOYEE_ID){toast('სესია','error');return;}
@@ -1072,10 +1199,10 @@ async function saveEmpReq(){
 function setupEmpReq(){const t=new Date();g('erqsd').value=t.toISOString().slice(0,10);g('erqed').value=t.toISOString().slice(0,10);g('erqdesc').value='';}
 async function refreshNoticesBell(emp){
   const{data:N}=await sb.from('notices').select('*').order('created_at',{ascending:false}).limit(12);
-  const list=(N||[]).map(n=>`<div class="nitem" style="border:none;padding:10px"><div class="ndot" style="background:${prioC[n.priority]}"></div><div class="nitem-body"><div class="nitem-title">${n.title}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">${(n.body||'').slice(0,120)}</div></div></div>`).join('');
+  const list=(N||[]).map(n=>`<div class="nitem" style="border:none;padding:10px"><div class="ndot" style="background:${prioC[n.priority||'normal']}"></div><div class="nitem-body"><div class="nitem-title">${escHtml(n.title)}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">${escHtml((n.body||'').slice(0,120))}</div></div></div>`).join('');
   const html=list||'<div class="empty" style="padding:16px">შეტყობინებები არ არის</div>';
-  if(emp){g('emp-bell-panel').innerHTML=html;g('emp-bell-dot').style.display=(N&&N.length)?'block':'none';}
-  else{g('admin-bell-panel').innerHTML=html;g('admin-bell-dot').style.display=(N&&N.length)?'block':'none';}
+  if(emp){const p=g('emp-bell-panel'),d=g('emp-bell-dot');if(p)p.innerHTML=html;if(d)d.style.display=(N&&N.length)?'block':'none';}
+  else{const p=g('admin-bell-panel'),d=g('admin-bell-dot');if(p)p.innerHTML=html;if(d)d.style.display=(N&&N.length)?'block':'none';}
 }
 function toggleBell(){g('emp-bell-panel')?.classList.toggle('open');}
 function toggleAdminBell(){g('admin-bell-panel')?.classList.toggle('open');}
@@ -1088,6 +1215,7 @@ async function applyKpiPenaltyFromDisc(empId,type){
 
 // UTILS
 const g=id=>document.getElementById(id);
+const escHtml=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const AVC=['#5B4FE0','#E8437A','#0FA968','#E8890A','#4C46D5','#9B8CE8','#059669','#E03150'];
 const ac=i=>AVC[i%AVC.length];
 const ini=(f,l)=>((f||'')[0]||(l||'')[0]||'?').toUpperCase();
@@ -1095,7 +1223,6 @@ const fmtT=ts=>ts?new Date(ts).toTimeString().slice(0,5):'—';
 const fmtD=d=>d?new Date(d).toLocaleDateString('ka-GE'):'—';
 const fmtDt=dt=>dt?new Date(dt).toLocaleDateString('ka-GE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
 const gel=n=>Number(n)||0;
-const escHtml=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const timeInputVal=t=>{if(!t)return'';const x=String(t);return x.length>=5?x.slice(0,5):x;};
 const dashPeriod=()=>{const d=new Date();return{year:d.getFullYear(),month:d.getMonth()+1};};
 const KA_MONTHS=['იანვ','თებ','მარ','აპრ','მაი','ივნ','ივლ','აგვ','სექ','ოქტ','ნოე','დეკ'];
@@ -1115,10 +1242,10 @@ function renderDutyChips(){const el=g('duty-quick');if(!el)return;el.innerHTML=D
 function setDutyFilterIx(i){DUTY_FILTER=DUTY_QUICK[i].key;renderDutyChips();filterStaff();}
 const ISSUE_DEF=[{key:'uniform',label:'უნიფორმა'},{key:'badge',label:'ბეიჯი'},{key:'locker_key',label:'საკუჭრის გასაღები'},{key:'apron',label:'გარდინი / ხელთაფარი'}];
 
-function toast(m,t='success'){
+function toast(m,t='success',ms=3500){
   const el=document.createElement('div');
   el.className=`toast t-${t}`;el.textContent=m;
-  document.body.appendChild(el);setTimeout(()=>el.remove(),3500);
+  document.body.appendChild(el);setTimeout(()=>el.remove(),ms);
 }
 
 function normStatus(s){
@@ -1140,8 +1267,10 @@ const scoreColor=v=>{if(v>=80)return'var(--green)';if(v>=60)return'var(--yellow)
 // NAV
 function go(id,el){
   closeSidebar();
+  const pageEl=g('page-'+id);
+  if(!pageEl){console.warn('HRCore: unknown page',id);return;}
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  g('page-'+id).classList.add('active');
+  pageEl.classList.add('active');
   document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
   if(el)el.classList.add('active');
   const m={staff:lStaff,attendance:lAtt,payroll:lPayroll,requests:lReqs,notices:lNot,analytics:lAnalytics,performance:lPerf,training:lTrain,schedule:lSched,overtime:lOT,documents:lDocs,disciplinary:lDisc,settings:lSettings};
@@ -1161,6 +1290,8 @@ function closeSidebar(){g('sidebar')?.classList.remove('open');g('sb-bg')?.class
 // ========== DASHBOARD ==========
 async function lDash(){
   const dp=dashPeriod();
+  const errHtml=msg=>`<div class="empty" style="padding:16px;color:var(--red)">${escHtml(msg)}</div>`;
+  try{
   const[eR,aR,sR,rR,nR,kR]=await Promise.all([
     sb.from('employee_details').select('*'),
     sb.from('attendance').select('*').eq('work_date',new Date().toISOString().slice(0,10)),
@@ -1169,43 +1300,52 @@ async function lDash(){
     sb.from('notices').select('*').order('created_at',{ascending:false}).limit(4),
     sb.from('kpi_metrics').select('*,employees(first_name,last_name)').eq('year',dp.year).eq('month',dp.month).eq('metric_name','დასწრება').limit(7)
   ]);
+  [[eR,'პერსონალი'],[aR,'დასწრება'],[sR,'ხელფასი'],[rR,'მოთხოვნები'],[nR,'შეტყობინებები'],[kR,'KPI']].forEach(([res,label])=>{
+    if(res.error)console.warn('lDash',label,res.error);
+  });
   const E=eR.data||[],A=aR.data||[],S=sR.data||[],R=rR.data||[],N=nR.data||[],K=kR.data||[];
 
-  g('ds1').textContent=E.length;g('ds1s').textContent=E.filter(e=>['active','probation'].includes(normStatus(e.status))).length+' active / probation';
-  g('ds2').textContent=A.filter(a=>['present','late'].includes(a.status)).length;
-  g('ds3').textContent=R.length;
-  g('ds4').textContent='₾'+S.reduce((s,r)=>s+gel(r.net_salary),0).toLocaleString();
+  const ds1=g('ds1'),ds1s=g('ds1s'),ds2=g('ds2'),ds3=g('ds3'),ds4=g('ds4');
+  if(ds1)ds1.textContent=E.length;if(ds1s)ds1s.textContent=E.filter(e=>['active','probation'].includes(normStatus(e.status))).length+' active / probation';
+  if(ds2)ds2.textContent=A.filter(a=>['present','late'].includes(a.status)).length;
+  if(ds3)ds3.textContent=R.length;
+  if(ds4)ds4.textContent='₾'+S.reduce((s,r)=>s+gel(r.net_salary),0).toLocaleString();
   const ds4s=g('ds4-sub');if(ds4s)ds4s.textContent=`${KA_MONTHS[dp.month-1]} ${dp.year}`;
-  const rb=g('req-nb');if(R.length){rb.style.display='inline';rb.textContent=R.length;g('req-nb2').style.display='inline';g('req-nb2').textContent=R.length;}else{rb.style.display='none';g('req-nb2').style.display='none';}
-  g('req-cnt').textContent=R.length?R.length+' pending':'';
+  const rb=g('req-nb'),rn2=g('req-nb2');
+  if(rb&&rn2){if(R.length){rb.style.display='inline';rb.textContent=R.length;rn2.style.display='inline';rn2.textContent=R.length;}else{rb.style.display='none';rn2.style.display='none';}}
+  const rc=g('req-cnt');if(rc)rc.textContent=R.length?R.length+' pending':'';
 
   // Staff
-  g('d-staff').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Status</th><th>Dept</th><th>Salary</th><th>Actions</th></tr></thead><tbody>${
-    E.slice(0,7).map((e,i)=>`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(e.first_name,e.last_name)}</div><div><div class="emp-n">${e.first_name} ${e.last_name}</div><div class="emp-r">${e.position||'—'}</div></div></div></td><td>${sBadge(e.status)}</td><td><span class="badge b-purple">${e.department||'—'}</span></td><td style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700">₾${gel(e.salary).toLocaleString()}</td><td><div style="display:flex;gap:4px"><button class="icon-btn" onclick="editEmp('${e.id}')">✏</button><button class="icon-btn del" onclick="delEmp('${e.id}','${e.first_name} ${e.last_name}')">✕</button></div></td></tr>`).join('')
+  const staffEl=g('d-staff');if(staffEl)staffEl.innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Status</th><th>Dept</th><th>Salary</th><th>Actions</th></tr></thead><tbody>${
+    E.slice(0,7).map((e,i)=>`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(e.first_name,e.last_name)}</div><div><div class="emp-n">${escHtml(e.first_name)} ${escHtml(e.last_name)}</div><div class="emp-r">${escHtml(e.position||'—')}</div></div></div></td><td>${sBadge(e.status)}</td><td><span class="badge b-purple">${escHtml(e.department||'—')}</span></td><td style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700">₾${gel(e.salary).toLocaleString()}</td><td><div style="display:flex;gap:4px"><button class="icon-btn" onclick="editEmp('${e.id}')">✏</button><button class="icon-btn del" onclick="delEmp('${e.id}')">✕</button></div></td></tr>`).join('')
   }</tbody></table>`;
 
   // Requests
-  g('d-reqs').innerHTML=R.length===0?'<div class="empty">✓ No pending requests</div>':
-    R.slice(0,3).map(r=>`<div class="ritem"><div style="flex:1"><div style="font-size:12px;font-weight:600">${r.full_name}</div><div style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace">${{vacation:'🌴',shift_change:'🔄',shift_swap:'🔁',day_off:'📅',sick_leave:'📋',other:'📌'}[r.type]||'📝'} ${RL(r.type)}</div></div><div style="display:flex;gap:4px"><button class="btn btn-success btn-xs" onclick="uReq('${r.id}','approved')">✓</button><button class="btn btn-danger btn-xs" onclick="uReq('${r.id}','rejected')">✗</button></div></div>`).join('');
+  const dreq=g('d-reqs');if(dreq)dreq.innerHTML=R.length===0?'<div class="empty">✓ No pending requests</div>':
+    R.slice(0,3).map(r=>`<div class="ritem"><div style="flex:1"><div style="font-size:12px;font-weight:600">${escHtml(r.full_name)}</div><div style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace">${{vacation:'🌴',shift_change:'🔄',shift_swap:'🔁',day_off:'📅',sick_leave:'📋',other:'📌'}[r.type]||'📝'} ${RL(r.type)}</div></div><div style="display:flex;gap:4px"><button class="btn btn-success btn-xs" onclick="uReq('${r.id}','approved')">✓</button><button class="btn btn-danger btn-xs" onclick="uReq('${r.id}','rejected')">✗</button></div></div>`).join('');
 
   // Notices
-  g('d-notices').innerHTML=N.map(n=>`<div class="nitem"><div class="ndot" style="background:${prioC[n.priority]}"></div><div class="nitem-body"><div class="nitem-title">${n.title}</div><div class="nitem-time">${new Date(n.created_at).toLocaleDateString('ka-GE')}</div></div></div>`).join('')||'<div class="empty">No notices</div>';
+  const dnot=g('d-notices');if(dnot)dnot.innerHTML=N.map(n=>`<div class="nitem"><div class="ndot" style="background:${prioC[n.priority||'normal']}"></div><div class="nitem-body"><div class="nitem-title">${escHtml(n.title)}</div><div class="nitem-time">${new Date(n.created_at).toLocaleDateString('ka-GE')}</div></div></div>`).join('')||'<div class="empty">No notices</div>';
 
   // Attendance bars
   const{data:mA}=await sb.from('attendance').select('employee_id,status');
   const ec={};(mA||[]).forEach(a=>{if(!ec[a.employee_id])ec[a.employee_id]={t:0,p:0};ec[a.employee_id].t++;if(['present','late'].includes(a.status))ec[a.employee_id].p++;});
-  g('d-att').innerHTML=E.slice(0,7).map(e=>{const c=ec[e.id];const p=c&&c.t>0?Math.round(c.p/c.t*100):null;return`<div class="score-bar"><div class="score-label">${e.first_name} ${(e.last_name||'')[0]}.</div><div class="score-track"><div class="score-fill" style="width:${p||0}%;background:${scoreColor(p||0)}"></div></div><div class="score-val">${p!==null?p+'%':'—'}</div></div>`;}).join('');
+  const datt=g('d-att');if(datt)datt.innerHTML=E.slice(0,7).map(e=>{const c=ec[e.id];const p=c&&c.t>0?Math.round(c.p/c.t*100):null;return`<div class="score-bar"><div class="score-label">${escHtml(e.first_name)} ${escHtml((e.last_name||'')[0])}.</div><div class="score-track"><div class="score-fill" style="width:${p||0}%;background:${scoreColor(p||0)}"></div></div><div class="score-val">${p!==null?p+'%':'—'}</div></div>`;}).join('');
 
   // KPI rings
-  g('d-kpi').innerHTML=K.map(k=>{
+  const dkpi=g('d-kpi');if(dkpi)dkpi.innerHTML=K.map(k=>{
     const pct=k.target>0?Math.min(100,Math.round(gel(k.actual)/gel(k.target)*100)):0;
     const r=14,circ=2*Math.PI*r,dash=circ*(1-pct/100);
     const c=scoreColor(pct);
-    return`<div class="kpi-item"><div class="kpi-ring"><svg viewBox="0 0 36 36" width="36" height="36"><circle class="kpi-ring-bg" cx="18" cy="18" r="${r}"/><circle class="kpi-ring-fill" cx="18" cy="18" r="${r}" stroke="${c}" stroke-dasharray="${circ}" stroke-dashoffset="${dash}"/></svg><div class="kpi-pct" style="color:${c}">${pct}%</div></div><div class="kpi-label"><div class="kpi-name">${k.employees?.first_name||'?'} ${(k.employees?.last_name||'')[0]}.</div><div class="kpi-sub">${k.metric_name}</div></div><div class="kpi-val" style="color:${c}">${gel(k.actual)}/${gel(k.target)}</div></div>`;
+    return`<div class="kpi-item"><div class="kpi-ring"><svg viewBox="0 0 36 36" width="36" height="36"><circle class="kpi-ring-bg" cx="18" cy="18" r="${r}"/><circle class="kpi-ring-fill" cx="18" cy="18" r="${r}" stroke="${c}" stroke-dasharray="${circ}" stroke-dashoffset="${dash}"/></svg><div class="kpi-pct" style="color:${c}">${pct}%</div></div><div class="kpi-label"><div class="kpi-name">${escHtml(k.employees?.first_name||'?')} ${escHtml((k.employees?.last_name||'')[0])}.</div><div class="kpi-sub">${escHtml(k.metric_name)}</div></div><div class="kpi-val" style="color:${c}">${gel(k.actual)}/${gel(k.target)}</div></div>`;
   }).join('')||'<div class="empty">No KPI data</div>';
 
-  // Calendar
   renderCal();
+  }catch(ex){
+    console.error('lDash',ex);
+    toast('დეშბორდი: '+((ex&&ex.message)||String(ex)),'error',6000);
+    ['d-staff','d-reqs','d-notices','d-att','d-kpi'].forEach(id=>{const el=g(id);if(el)el.innerHTML=errHtml('შეცდომა ჩატვირთვისას. F12 → Console.');});
+  }
 }
 
 // ========== CALENDAR ==========
@@ -1318,7 +1458,7 @@ function healthCertBadge(exp){
 function rStaff(data){
   if(!data.length){g('sw').innerHTML='<div class="empty">No employees found</div>';return;}
   g('sw').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Position</th><th>Dept</th><th>HR</th><th>Duty</th><th>ჯანმ. ცნობა</th><th>Salary</th><th>Hire</th><th>Actions</th></tr></thead><tbody>${
-    data.map((e,i)=>`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(e.first_name,e.last_name)}</div><div><div class="emp-n">${e.first_name} ${e.last_name}</div><div class="emp-r">${e.email||''}</div></div></div></td><td style="font-size:11.5px">${e.position||'—'}</td><td><span class="badge b-purple">${e.department||'—'}</span></td><td>${sBadge(e.status)}</td><td>${dutyBadge(e.duty_status)}</td><td>${healthCertBadge(e.health_certificate_expiry)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700">₾${gel(e.salary).toLocaleString()}</td><td style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace">${fmtD(e.hire_date)}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="icon-btn" title="პროფილი" onclick="openProfile('${e.id}')">👤</button><button class="icon-btn" onclick="editEmp('${e.id}')">✏</button><button class="icon-btn del" onclick="delEmp('${e.id}','${e.first_name} ${e.last_name}')">✕</button></div></td></tr>`).join('')
+    data.map((e,i)=>`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(e.first_name,e.last_name)}</div><div><div class="emp-n">${escHtml(e.first_name)} ${escHtml(e.last_name)}</div><div class="emp-r">${escHtml(e.email||'')}</div></div></div></td><td style="font-size:11.5px">${escHtml(e.position||'—')}</td><td><span class="badge b-purple">${escHtml(e.department||'—')}</span></td><td>${sBadge(e.status)}</td><td>${dutyBadge(e.duty_status)}</td><td>${healthCertBadge(e.health_certificate_expiry)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700">₾${gel(e.salary).toLocaleString()}</td><td style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace">${fmtD(e.hire_date)}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="icon-btn" title="პროფილი" onclick="openProfile('${e.id}')">👤</button><button class="icon-btn" onclick="editEmp('${e.id}')">✏</button><button class="icon-btn del" onclick="delEmp('${e.id}')">✕</button></div></td></tr>`).join('')
   }</tbody></table>`;
 }
 
@@ -1332,7 +1472,7 @@ async function setupEmp(id=null){
     if(e){
       g('efn').value=e.first_name||'';g('eln').value=e.last_name||'';g('eem').value=e.email||'';g('eph').value=e.phone||'';g('edept').value=e.department_id||'';g('esal').value=e.salary||'';
       const st=e.status||'active';g('estat').value=['probation','active','on_leave','terminated'].includes(st)?st:(st==='vacation'||st==='sick'?'on_leave':'active');
-      g('ehire').value=(e.hire_date||'').slice(0,10);g('enid').value=e.national_id||'';g('ehealth').value=(e.health_certificate_expiry||'').slice(0,10);
+      g('ehire').value=(e.hire_date||'').slice(0,10);g('enote').value=e.hr_note||'';g('enid').value=e.national_id||'';g('ehealth').value=(e.health_certificate_expiry||'').slice(0,10);
       g('ectrstart').value=(e.contract_start_date||'').slice(0,10);g('ectrend').value=(e.contract_end_date||'').slice(0,10);
       g('ehour').value=e.hourly_rate!=null?e.hourly_rate:'';g('eduty').value=e.duty_status||'off_duty';
       await lpos();g('epos').value=e.position_id||'';
@@ -1357,7 +1497,8 @@ async function saveEmp(){
     status:g('estat').value,hire_date:g('ehire').value||null,
     national_id:g('enid').value.trim()||null,health_certificate_expiry:g('ehealth').value||null,
     contract_start_date:g('ectrstart').value||null,contract_end_date:g('ectrend').value||null,
-    hourly_rate:parseFloat(g('ehour').value)||0,duty_status:g('eduty').value||'off_duty'
+    hourly_rate:parseFloat(g('ehour').value)||0,duty_status:g('eduty').value||'off_duty',
+    hr_note:g('enote').value.trim()||null
   };
   const{error}=id?await sb.from('employees').update(pay).eq('id',id):await sb.from('employees').insert(pay);
   if(error){toast('Error: '+error.message,'error');return;}
@@ -1365,8 +1506,11 @@ async function saveEmp(){
   await lDash();if(g('page-staff').classList.contains('active'))await lStaff();
 }
 function editEmp(id){om('emp',id);}
-function delEmp(id,name){
-  g('conf-txt').textContent=`Delete "${name}"? This cannot be undone.`;
+async function delEmp(id){
+  let label='this employee';
+  const{data:e}=await sb.from('employees').select('first_name,last_name').eq('id',id).maybeSingle();
+  if(e){const n=`${e.first_name||''} ${e.last_name||''}`.trim();if(n)label=n;}
+  g('conf-txt').textContent=`Delete "${label}"? This cannot be undone.`;
   g('conf-ok').onclick=async()=>{await sb.from('employees').delete().eq('id',id);toast('Deleted');cm('conf');await lStaff();await lDash();};
   g('m-conf').classList.add('open');
 }
@@ -1383,10 +1527,10 @@ async function lPerf(){
     ${rows.map((r,i)=>{
       const stars=n=>`<div class="stars">${[1,2,3,4,5].map(s=>`<span class="star ${s<=n?'on':''}">${s<=n?'★':'☆'}</span>`).join('')}</div>`;
       const sc=gel(r.score);const c=sc>=8?'var(--green)':sc>=6?'var(--yellow)':'var(--red)';
-      return`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(r.employees?.first_name,r.employees?.last_name)}</div><div class="emp-n">${r.employees?.first_name||'?'} ${r.employees?.last_name||''}</div></div></td>
+      return`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(r.employees?.first_name,r.employees?.last_name)}</div><div class="emp-n">${escHtml(r.employees?.first_name||'?')} ${escHtml(r.employees?.last_name||'')}</div></div></td>
         <td><span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:${c}">${sc}</span></td>
         <td>${stars(r.punctuality)}</td><td>${stars(r.teamwork)}</td><td>${stars(r.quality)}</td><td>${stars(r.attitude)}</td>
-        <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment||'—'}</td></tr>`;
+        <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(r.comment||'—')}</td></tr>`;
     }).join('')}</tbody></table></div>`;
 }
 async function setupReview(){
@@ -1617,7 +1761,7 @@ async function saveSal(){
 async function lReqs(){
   const{data}=await sb.from('pending_requests').select('*');const R=data||[];
   const rb=g('req-nb');if(R.length){rb.style.display='inline';rb.textContent=R.length;}else rb.style.display='none';
-  g('req-cnt').textContent=R.length?R.length+' pending':'';
+  const rc2=g('req-cnt');if(rc2)rc2.textContent=R.length?R.length+' pending':'';
   g('req-wrap').innerHTML=R.length===0?'<div class="empty">✓ All requests reviewed</div>':
     R.map(r=>`<div class="ritem" id="ri-${r.id}" style="padding:14px 18px"><div style="font-size:20px;flex-shrink:0">${{vacation:'🌴',shift_change:'🔄',shift_swap:'🔁',day_off:'📅',sick_leave:'📋',other:'📌'}[r.type]||'📝'}</div><div style="flex:1"><div style="font-weight:600;font-size:13px">${r.full_name} — ${RL(r.type)}</div><div style="font-size:11px;color:var(--text2)">${r.description||''}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${fmtD(r.start_date)}${r.end_date&&r.end_date!==r.start_date?' → '+fmtD(r.end_date):''}</div></div><div style="display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="uReq('${r.id}','approved')">✓ Approve</button><button class="btn btn-danger btn-sm" onclick="uReq('${r.id}','rejected')">✗ Reject</button></div></div>`).join('');
 }
@@ -1660,7 +1804,7 @@ function delDoc(id){
 async function lDisc(){
   const{data}=await sb.from('disciplinary').select('*,employees(first_name,last_name)').order('issued_at',{ascending:false});
   const rows=data||[];
-  g('disc-wrap').innerHTML=rows.map(r=>`<div class="disc-item"><div class="disc-icon">${dtL(r.type)}</div><div style="flex:1"><div style="font-weight:600;font-size:13px">${r.employees?.first_name||'?'} ${r.employees?.last_name||''}</div><div style="font-size:12px;color:var(--text2);margin-top:2px">${r.reason}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${fmtD(r.issued_at)} · ${r.type}</div></div><button class="icon-btn del" onclick="delDisc('${r.id}')">✕</button></div>`).join('')||'<div class="empty">No disciplinary records</div>';
+  g('disc-wrap').innerHTML=rows.map(r=>`<div class="disc-item"><div class="disc-icon">${dtL(r.type)}</div><div style="flex:1"><div style="font-weight:600;font-size:13px">${escHtml(r.employees?.first_name||'?')} ${escHtml(r.employees?.last_name||'')}</div><div style="font-size:12px;color:var(--text2);margin-top:2px">${escHtml(r.reason)}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${fmtD(r.issued_at)} · ${escHtml(r.type)}</div></div><button class="icon-btn del" onclick="delDisc('${r.id}')">✕</button></div>`).join('')||'<div class="empty">No disciplinary records</div>';
 }
 async function setupDisc(){
   const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
@@ -1703,11 +1847,11 @@ async function openProfile(id){
   let hcBanner='';
   if(e.health_certificate_expiry){const d=new Date(e.health_certificate_expiry),days=Math.ceil((d-Date.now())/864e5);
     if(days<0||days<=7)hcBanner=`<div style="padding:12px 14px;border-radius:10px;margin-bottom:14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.4);font-size:12px;font-weight:600;color:var(--red)">⚠️ ჯანმრთელობის ცნობა: ${days<0?'ვადაგასული!':days+' დღეში ექსპირაცია (≤7 დღე)'}</div>`;}
-  const discHtml=discs.length?discs.map(r=>`<div class="disc-item"><div class="disc-icon">${dtL(r.type)}</div><div style="flex:1"><div style="font-weight:600;font-size:12.5px">${r.type}</div><div style="font-size:12px;color:var(--text2);margin-top:4px">${(r.reason||'').replace(/</g,'&lt;')}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:4px">${fmtD(r.issued_at)}</div></div></div>`).join(''):'<div class="empty" style="padding:16px">დისციპლინარული ჩანაწერები არ არის</div>';
+  const discHtml=discs.length?discs.map(r=>`<div class="disc-item"><div class="disc-icon">${dtL(r.type)}</div><div style="flex:1"><div style="font-weight:600;font-size:12.5px">${escHtml(r.type)}</div><div style="font-size:12px;color:var(--text2);margin-top:4px">${escHtml(r.reason||'')}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:4px">${fmtD(r.issued_at)}</div></div></div>`).join(''):'<div class="empty" style="padding:16px">დისციპლინარული ჩანაწერები არ არის</div>';
   g('prof-body').innerHTML=`${hcBanner}
     <div class="profile-section"><h4>კომპლიანსი</h4>
       <div class="prof-grid">
-        <div><span style="color:var(--text2)">ID</span><div style="font-family:'JetBrains Mono',monospace;margin-top:2px">${e.national_id||'—'}</div></div>
+        <div><span style="color:var(--text2)">ID</span><div style="font-family:'JetBrains Mono',monospace;margin-top:2px">${escHtml(e.national_id||'—')}</div></div>
         <div><span style="color:var(--text2)">ჯანმ. ცნობა</span><div style="margin-top:4px">${healthCertBadge(e.health_certificate_expiry)}</div></div>
         <div><span style="color:var(--text2)">კონტრაქტი</span><div style="font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:2px">${fmtD(e.contract_start_date)} → ${fmtD(e.contract_end_date)}</div></div>
         <div><span style="color:var(--text2)">სტატუსი</span><div style="margin-top:4px">${sBadge(e.status)}</div></div>
@@ -1728,7 +1872,7 @@ async function saveProfileIssued(){
 // ========== NOTICES ==========
 async function lNot(){
   const{data}=await sb.from('notices').select('*').order('created_at',{ascending:false});
-  g('not-wrap').innerHTML=(data||[]).map(n=>`<div class="nitem" id="ni-${n.id}" style="padding:14px 18px"><div class="ndot" style="background:${prioC[n.priority]};width:8px;height:8px;margin-top:6px;flex-shrink:0;border-radius:50%"></div><div class="nitem-body"><div class="nitem-title">${n.title}</div><div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5">${n.body||''}</div><div class="nitem-time">${new Date(n.created_at).toLocaleDateString('ka-GE')} · ${n.priority}</div></div><div style="display:flex;gap:5px;flex-shrink:0"><button class="icon-btn" onclick="editNot('${n.id}')">✏</button><button class="icon-btn del" onclick="delNot('${n.id}')">✕</button></div></div>`).join('')||'<div class="empty">No notices</div>';
+  g('not-wrap').innerHTML=(data||[]).map(n=>`<div class="nitem" id="ni-${n.id}" style="padding:14px 18px"><div class="ndot" style="background:${prioC[n.priority||'normal']};width:8px;height:8px;margin-top:6px;flex-shrink:0;border-radius:50%"></div><div class="nitem-body"><div class="nitem-title">${escHtml(n.title)}</div><div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5">${escHtml(n.body||'')}</div><div class="nitem-time">${new Date(n.created_at).toLocaleDateString('ka-GE')} · ${escHtml(n.priority||'')}</div></div><div style="display:flex;gap:5px;flex-shrink:0"><button class="icon-btn" onclick="editNot('${n.id}')">✏</button><button class="icon-btn del" onclick="delNot('${n.id}')">✕</button></div></div>`).join('')||'<div class="empty">No notices</div>';
 }
 function setupNotice(id=null){g('nid').value=id||'';g('not-mt').textContent=id?'Edit Notice':'New Notice';if(!id){g('ntit').value='';g('nbod').value='';g('nprio').value='normal';}}
 async function editNot(id){const{data:n}=await sb.from('notices').select('*').eq('id',id).single();if(n){g('nid').value=n.id;g('ntit').value=n.title;g('nbod').value=n.body||'';g('nprio').value=n.priority;g('not-mt').textContent='Edit Notice';}g('m-notice').classList.add('open');}
@@ -1906,10 +2050,24 @@ async function lSettings(){
 }
 
 // INIT
-sb.auth.onAuthStateChange((ev,session)=>{
-  if(isAppUnlocked())return;
-  if(ev==='SIGNED_OUT'){USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
-  else if(ev==='SIGNED_IN'&&session)initAuth();
+sb.auth.onAuthStateChange(async(ev,session)=>{
+  if(ev==='INITIAL_SESSION')return;
+  if(ev==='SIGNED_OUT'){
+    if(isAppUnlocked()){
+      await enterDevAdminBypassCore();
+      return;
+    }
+    USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;
+    g('auth-screen')?.classList.remove('hidden');
+    g('app-admin')?.classList.add('hidden');
+    g('app-employee')?.classList.remove('active');
+    const ag=g('admin-global-actions');if(ag)ag.style.display='none';
+    return;
+  }
+  if(ev==='SIGNED_IN'&&session?.user){
+    try{sessionStorage.removeItem(HRCORE_PIN_KEY);}catch(e){}
+    await applyAuthenticatedSession(session);
+  }
 });
 function syncPeriodUi(){
   const dp=dashPeriod(),q=Math.floor((dp.month-1)/3)+1;
@@ -1928,7 +2086,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     btn.addEventListener('click',e=>{e.stopPropagation();toggleSidebar();});
     tb.insertBefore(btn,tb.firstChild);
   });
-  initAuth();
+  void initAuth();
+  void pingSupabaseOnce();
   if(g('att-today'))g('att-today').textContent=new Date().toLocaleDateString('ka-GE',{weekday:'long',day:'numeric',month:'long'});
 });
 </script>

@@ -22,19 +22,23 @@ ALTER TABLE public.employees
   ADD COLUMN IF NOT EXISTS contract_start_date date,
   ADD COLUMN IF NOT EXISTS contract_end_date date,
   ADD COLUMN IF NOT EXISTS health_certificate_expiry date,
-  ADD COLUMN IF NOT EXISTS issued_items jsonb DEFAULT '[]'::jsonb;
+  ADD COLUMN IF NOT EXISTS issued_items jsonb DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS hr_note text;
 
 -- Payroll: overtime component for net formula
 ALTER TABLE public.salary_records
   ADD COLUMN IF NOT EXISTS overtime_pay numeric DEFAULT 0,
   ADD COLUMN IF NOT EXISTS net_salary numeric;
 
--- If employee_details is a view on employees, recreate it to expose new columns, e.g.:
--- CREATE OR REPLACE VIEW public.employee_details AS
---   SELECT e.*, d.name AS department, p.name AS position
---   FROM employees e
---   LEFT JOIN departments d ON d.id = e.department_id
---   LEFT JOIN positions p ON p.id = e.position_id;
+-- employee_details uses e.*; recreate view so new columns (e.g. hr_note) appear in SELECT *.
+CREATE OR REPLACE VIEW public.employee_details AS
+SELECT
+  e.*,
+  d.name AS department,
+  p.name AS position
+FROM public.employees e
+LEFT JOIN public.departments d ON d.id = e.department_id
+LEFT JOIN public.positions p ON p.id = e.position_id;
 
 -- salary_summary view: include sr.overtime_pay and either expose sr.net_salary or compute:
 --   (COALESCE(sr.base_salary,0) + COALESCE(sr.bonus,0) + COALESCE(sr.overtime_pay,0) - COALESCE(sr.deduction,0)) AS net_salary
