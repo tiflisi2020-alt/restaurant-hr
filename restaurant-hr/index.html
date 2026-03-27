@@ -673,8 +673,9 @@ body{background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(108,99,255,0.12
     </div>
     <div class="g2">
       <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent3)"></div>განყოფილებები</div></div><div id="dept-settings"><div class="loader"><div class="spin"></div>loading...</div></div></div>
-      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent4)"></div>DB სტატისტიკა</div></div><div id="db-stats"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent2)"></div>პოზიციები</div></div><div id="pos-settings"><div class="loader"><div class="spin"></div>loading...</div></div></div>
     </div>
+    <div class="card" style="margin-top:18px"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent4)"></div>DB სტატისტიკა</div></div><div id="db-stats"><div class="loader"><div class="spin"></div>loading...</div></div></div>
   </div>
 </div>
 
@@ -934,7 +935,7 @@ async function enterDevAdminBypass(){
   g('app-employee')?.classList.remove('active');
   const ag=g('admin-global-actions');if(ag)ag.style.display='flex';
   if(shouldToastDevBypass())toast('დროებითი რეჟიმი: DEV_SKIP_LOGIN ან skipauth.','info');
-  try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან კავშირი ვერ მოხერხდა — შეამოწმეთ Supabase URL/გასაღები, RLS','error');}
+  try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან კავშირი ვერ მოხერხდა — URL/anon გასაღები, ან Supabase SQL-ში გაუშვით supabase-rls-anon-pin-mode.sql (PIN რეჟიმი).','error');}
   try{renderCal();}catch(e){console.warn('renderCal',e);}
   try{await refreshNoticesBell();}catch(e){console.warn('refreshNoticesBell',e);}
 }
@@ -1094,6 +1095,8 @@ const fmtT=ts=>ts?new Date(ts).toTimeString().slice(0,5):'—';
 const fmtD=d=>d?new Date(d).toLocaleDateString('ka-GE'):'—';
 const fmtDt=dt=>dt?new Date(dt).toLocaleDateString('ka-GE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
 const gel=n=>Number(n)||0;
+const escHtml=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const timeInputVal=t=>{if(!t)return'';const x=String(t);return x.length>=5?x.slice(0,5):x;};
 const dashPeriod=()=>{const d=new Date();return{year:d.getFullYear(),month:d.getMonth()+1};};
 const KA_MONTHS=['იანვ','თებ','მარ','აპრ','მაი','ივნ','ივლ','აგვ','სექ','ოქტ','ნოე','დეკ'];
 let AS=[],AD=[],AP=[],DF=null,CHARTS={},DQFILTER=null,PAY_ROWS=[],PROF_ID=null,schedWeekOffset=0;
@@ -1743,11 +1746,102 @@ function delNot(id){
 }
 
 // ========== SETTINGS ==========
+function deptOptionsHtml(D,selId){
+  return`<option value="">— განყოფილება —</option>`+D.map(d=>`<option value="${d.id}"${d.id===selId?' selected':''}>${escHtml(d.name)}</option>`).join('');
+}
+
+async function settingsReloadRefs(){
+  await lSettings();
+  try{if(g('page-staff')?.classList.contains('active'))await lStaff();}catch(e){}
+  try{if(g('page-schedule')?.classList.contains('active'))await lSched();}catch(e){}
+}
+
+async function savePayrollRow(id){
+  const vi=g(`payv-${id}`),ai=g(`paya-${id}`);
+  if(!vi)return;
+  const v=parseFloat(vi.value);if(Number.isNaN(v)){toast('რიცხვი არასწორია','error');return;}
+  const{error}=await sb.from('payroll_settings').update({value:v,active:!!(ai&&ai.checked)}).eq('id',id);
+  if(error){toast(error.message||'ვერ შეინახა','error');return;}
+  toast('შენახულია','success');await lSettings();
+}
+
+async function addShift(){
+  const nm=(g('new-shift-name')?.value||'').trim();const st=g('new-shift-start')?.value;const en=g('new-shift-end')?.value;
+  if(!nm){toast('სმენის სახელი','error');return;}
+  if(!st||!en){toast('დასაწყისი და დასასრული','error');return;}
+  const{error}=await sb.from('shifts').insert({name:nm,start_time:st.length===5?st+':00':st,end_time:en.length===5?en+':00':en});
+  if(error){toast(error.message||'ვერ შეინახა','error');return;}
+  g('new-shift-name').value='';g('new-shift-start').value='';g('new-shift-end').value='';
+  toast('სმენა დაემატა','success');await settingsReloadRefs();
+}
+
+async function saveShift(id){
+  const nm=(g(`shn-${id}`)?.value||'').trim();const st=g(`shs-${id}`)?.value;const en=g(`she-${id}`)?.value;
+  if(!nm){toast('სახელი','error');return;}
+  if(!st||!en){toast('დრო','error');return;}
+  const{error}=await sb.from('shifts').update({name:nm,start_time:st.length===5?st+':00':st,end_time:en.length===5?en+':00':en}).eq('id',id);
+  if(error){toast(error.message||'ვერ შეინახა','error');return;}
+  toast('შენახულია','success');await settingsReloadRefs();
+}
+
+function delShift(id){
+  g('conf-txt').textContent='წავშალოთ სმენა? დაკავშირებული განრიგის ჩანაწერებიც წაიშლება (CASCADE).';
+  g('conf-ok').onclick=async()=>{cm('conf');const{error}=await sb.from('shifts').delete().eq('id',id);if(error){toast(error.message,'error');return;}toast('წაშლილია');await settingsReloadRefs();};
+  g('m-conf').classList.add('open');
+}
+
+async function addDepartment(){
+  const inp=g('new-dept-name');const name=(inp?.value||'').trim();
+  if(!name){toast('შეიყვანეთ სახელი','error');return;}
+  const{error}=await sb.from('departments').insert({name});
+  if(error){toast(error.message||'ვერ შეინახა','error');return;}
+  inp.value='';
+  toast('დაემატა','success');await settingsReloadRefs();
+}
+
+async function saveDepartment(id){
+  const inp=g(`deptn-${id}`);const name=(inp?.value||'').trim();
+  if(!name){toast('სახელი','error');return;}
+  const{error}=await sb.from('departments').update({name}).eq('id',id);
+  if(error){toast(error.message||'ვერ შეინახა','error');return;}
+  toast('შენახულია','success');await settingsReloadRefs();
+}
+
+function delDepartment(id){
+  g('conf-txt').textContent='წავშალოთ განყოფილება? თანამშრომლებსა და პოზიციებს განყოფილება მოშლება (ბმა null გახდება).';
+  g('conf-ok').onclick=async()=>{cm('conf');const{error}=await sb.from('departments').delete().eq('id',id);if(error){toast(error.message,'error');return;}toast('წაშლილია');await settingsReloadRefs();};
+  g('m-conf').classList.add('open');
+}
+
+async function addPosition(){
+  const nm=(g('new-pos-name')?.value||'').trim();const did=g('new-pos-dept')?.value||null;
+  if(!nm){toast('პოზიციის სახელი','error');return;}
+  const{error}=await sb.from('positions').insert({name:nm,department_id:did||null});
+  if(error){toast(error.message||'ვერ შეინახა','error');return;}
+  g('new-pos-name').value='';
+  toast('პოზიცია დაემატა','success');await settingsReloadRefs();
+}
+
+async function savePosition(id){
+  const nm=(g(`posn-${id}`)?.value||'').trim();const did=g(`posd-${id}`)?.value||null;
+  if(!nm){toast('სახელი','error');return;}
+  const{error}=await sb.from('positions').update({name:nm,department_id:did||null}).eq('id',id);
+  if(error){toast(error.message||'ვერ შეინახა','error');return;}
+  toast('შენახულია','success');await settingsReloadRefs();
+}
+
+function delPosition(id){
+  g('conf-txt').textContent='წავშალოთ პოზიცია? თანამშრომლებს პოზიცია მოშლება.';
+  g('conf-ok').onclick=async()=>{cm('conf');const{error}=await sb.from('positions').delete().eq('id',id);if(error){toast(error.message,'error');return;}toast('წაშლილია');await settingsReloadRefs();};
+  g('m-conf').classList.add('open');
+}
+
 async function lSettings(){
-  const[psR,shR,dR,counts]=await Promise.all([
-    sb.from('payroll_settings').select('*').eq('active',true),
+  const[psR,shR,dR,posR,counts]=await Promise.all([
+    sb.from('payroll_settings').select('*').order('name'),
     sb.from('shifts').select('*').order('start_time'),
     sb.from('departments').select('*').order('name'),
+    sb.from('positions').select('id,name,department_id').order('name'),
     Promise.all([
       sb.from('employees').select('*',{count:'exact',head:true}),
       sb.from('attendance').select('*',{count:'exact',head:true}),
@@ -1759,13 +1853,56 @@ async function lSettings(){
       sb.from('disciplinary').select('*',{count:'exact',head:true}),
     ])
   ]);
-  const PS=psR.data||[],SH=shR.data||[],D=dR.data||[];
-  g('pay-settings').innerHTML=`<table class="tbl"><thead><tr><th>Name</th><th>Value</th><th>Type</th></tr></thead><tbody>${PS.map(p=>`<tr><td style="font-size:12.5px">${p.name}</td><td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">${p.value}${p.type==='tax'||p.type==='insurance'?'%':p.type==='overtime_rate'?'x':''}</td><td><span class="badge b-gray" style="font-size:9.5px">${p.type}</span></td></tr>`).join('')}</tbody></table>`;
-  g('shift-settings').innerHTML=`<table class="tbl"><thead><tr><th>Shift</th><th>Start</th><th>End</th></tr></thead><tbody>${SH.map(s=>`<tr><td style="font-size:12.5px;font-weight:600">${s.name}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--green)">${s.start_time?.slice(0,5)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--accent2)">${s.end_time?.slice(0,5)}</td></tr>`).join('')}</tbody></table>`;
-  g('dept-settings').innerHTML=`<div style="padding:14px;display:flex;flex-direction:column;gap:8px">${D.map(d=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px"><div style="font-weight:600;font-size:12.5px">${d.name}</div></div>`).join('')}</div>`;
+  const PS=psR.data||[],SH=shR.data||[],D=dR.data||[],POS=posR.data||[];
+  const payRows=PS.map(p=>{
+    const suf=p.type==='tax'||p.type==='insurance'?' %':p.type==='overtime_rate'?' ×':'';
+    return`<tr><td style="font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace">${escHtml(p.name)}</td><td><input type="number" step="0.01" class="fi" style="width:100px;font-family:'JetBrains Mono',monospace" id="payv-${p.id}" value="${gel(p.value)}"><span style="font-size:11px;color:var(--text2)">${suf}</span></td><td><span class="badge b-gray" style="font-size:9px">${escHtml(p.type)}</span></td><td style="text-align:center"><input type="checkbox" id="paya-${p.id}"${p.active!==false?' checked':''}></td><td><button type="button" class="btn btn-accent btn-sm" onclick="savePayrollRow('${p.id}')">შენახვა</button></td></tr>`;
+  }).join('');
+  g('pay-settings').innerHTML=`<div style="padding:14px;overflow-x:auto"><table class="tbl"><thead><tr><th>პარამეტრი</th><th>მნიშვნელობა</th><th>ტიპი</th><th>აქტიური</th><th></th></tr></thead><tbody>${payRows||'<tr><td colspan="5" class="empty">ცარიელი</td></tr>'}</tbody></table><p style="font-size:10px;color:var(--text3);margin-top:10px;font-family:'JetBrains Mono',monospace">income_tax / social_insurance — პროცენტი; overtime_rate — მულტიპლიკატორი</p></div>`;
+
+  const shiftRows=SH.map(s=>`<tr><td><input class="fi" style="min-width:120px" id="shn-${s.id}" value="${escHtml(s.name)}"></td><td><input type="time" class="fi" id="shs-${s.id}" value="${timeInputVal(s.start_time)}"></td><td><input type="time" class="fi" id="she-${s.id}" value="${timeInputVal(s.end_time)}"></td><td style="white-space:nowrap"><button type="button" class="btn btn-accent btn-sm" onclick="saveShift('${s.id}')">შენახვა</button> <button type="button" class="btn btn-ghost btn-sm del" onclick="delShift('${s.id}')">✕</button></td></tr>`).join('');
+  g('shift-settings').innerHTML=`<div style="padding:14px;display:flex;flex-direction:column;gap:14px">
+    <div style="display:grid;grid-template-columns:1fr 110px 110px auto;gap:8px;align-items:end">
+      <div class="fg" style="margin:0"><label class="fl">ახალი სმენა</label><input type="text" id="new-shift-name" class="fi" placeholder="სახელი" maxlength="80"></div>
+      <div class="fg" style="margin:0"><label class="fl">დაწყება</label><input type="time" id="new-shift-start" class="fi"></div>
+      <div class="fg" style="margin:0"><label class="fl">დასასრული</label><input type="time" id="new-shift-end" class="fi"></div>
+      <button type="button" class="btn btn-accent btn-sm" onclick="addShift()">+ დამატება</button>
+    </div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>სახელი</th><th>დაწყება</th><th>დასასრული</th><th></th></tr></thead><tbody>${shiftRows||'<tr><td colspan="4" class="empty">სმენები არ არის</td></tr>'}</tbody></table></div>
+  </div>`;
+
+  const deptRows=D.length?D.map(d=>`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+    <input class="fi" style="flex:1;min-width:140px" id="deptn-${d.id}" value="${escHtml(d.name)}" maxlength="120">
+    <button type="button" class="btn btn-accent btn-sm" onclick="saveDepartment('${d.id}')">შენახვა</button>
+    <button type="button" class="btn btn-ghost btn-sm del" onclick="delDepartment('${d.id}')">✕</button>
+  </div>`).join(''):'<div class="empty" style="padding:12px">ცარიელი</div>';
+  g('dept-settings').innerHTML=`<div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+      <div class="fg" style="flex:1;min-width:160px;margin:0"><label class="fl">ახალი განყოფილება</label><input type="text" id="new-dept-name" class="fi" placeholder="სახელი" maxlength="120"></div>
+      <button type="button" class="btn btn-accent btn-sm" onclick="addDepartment()">+ დამატება</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">${deptRows}</div>
+  </div>`;
+
+  const posOpts=deptOptionsHtml(D,null);
+  const posRows=POS.length?POS.map(p=>`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:8px">
+    <input class="fi" style="flex:1;min-width:120px" id="posn-${p.id}" value="${escHtml(p.name)}" maxlength="120">
+    <select class="fi" style="min-width:160px" id="posd-${p.id}">${deptOptionsHtml(D,p.department_id)}</select>
+    <button type="button" class="btn btn-accent btn-sm" onclick="savePosition('${p.id}')">შენახვა</button>
+    <button type="button" class="btn btn-ghost btn-sm del" onclick="delPosition('${p.id}')">✕</button>
+  </div>`).join(''):'<div class="empty" style="padding:12px">ცარიელი</div>';
+  g('pos-settings').innerHTML=`<div style="padding:14px;display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+      <div class="fg" style="flex:1;min-width:140px;margin:0"><label class="fl">ახალი პოზიცია</label><input type="text" id="new-pos-name" class="fi" placeholder="სახელი" maxlength="120"></div>
+      <div class="fg" style="min-width:180px;margin:0"><label class="fl">განყოფილება</label><select id="new-pos-dept" class="fi">${posOpts}</select></div>
+      <button type="button" class="btn btn-accent btn-sm" onclick="addPosition()">+ დამატება</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">${posRows}</div>
+  </div>`;
+
   const labels=['Employees','Attendance','Salary','Reviews','Trainings','Requests','Notices','Disciplinary'];
   const vals=counts.map(c=>c.count||0);
-  g('db-stats').innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px">${labels.map((l,i)=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:4px">${l}</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:${AVC[i%AVC.length]}">${vals[i]}</div></div>`).join('')}</div>`;
+  g('db-stats').innerHTML=`<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:14px">${labels.map((l,i)=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:4px">${l}</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:${AVC[i%AVC.length]}">${vals[i]}</div></div>`).join('')}</div>`;
 }
 
 // INIT
