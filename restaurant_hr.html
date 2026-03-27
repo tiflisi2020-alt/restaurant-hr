@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RestaurantHR — პერსონალის მართვა</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #F5F0E8;
+    --dark: #1A1208;
+    --brown: #3D2B1F;
+    --amber: #C8860A;
+    --gold: #E8A824;
+    --rust: #A63D2F;
+    --sage: #4A6741;
+    --light-brown: #8B6347;
+    --surface: #FDFAF4;
+    --border: #D4C4A8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--dark);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    width: 260px;
+    background: var(--dark);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    border-right: 3px solid var(--amber);
+  }
+
+  .logo {
+    padding: 28px 24px 20px;
+    border-bottom: 1px solid rgba(200,134,10,0.3);
+  }
+
+  .logo-icon {
+    font-size: 28px;
+    margin-bottom: 6px;
+  }
+
+  .logo h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    color: var(--gold);
+    letter-spacing: 1px;
+  }
+
+  .logo p {
+    font-size: 11px;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  nav { flex: 1; padding: 20px 0; }
+
+  .nav-section {
+    padding: 8px 20px 4px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.25);
+    font-weight: 600;
+    margin-top: 8px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 24px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 3px solid transparent;
+    color: rgba(255,255,255,0.55);
+    font-size: 14px;
+    font-weight: 400;
+  }
+
+  .nav-item:hover { background: rgba(200,134,10,0.1); color: var(--gold); }
+
+  .nav-item.active {
+    background: rgba(200,134,10,0.15);
+    border-left-color: var(--gold);
+    color: var(--gold);
+    font-weight: 500;
+  }
+
+  .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+  .sidebar-footer {
+    padding: 20px 24px;
+    border-top: 1px solid rgba(200,134,10,0.2);
+  }
+
+  .user-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .user-avatar {
+    width: 34px; height: 34px;
+    background: var(--amber);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--dark);
+  }
+
+  .user-info p { font-size: 13px; color: #fff; font-weight: 500; }
+  .user-info span { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+  /* MAIN */
+  .main {
+    margin-left: 260px;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .page-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    color: var(--brown);
+  }
+
+  .topbar-actions { display: flex; gap: 12px; align-items: center; }
+
+  .btn {
+    padding: 9px 20px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--amber);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--gold); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--brown);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--cream); }
+
+  .content { padding: 32px 36px; }
+
+  /* STATS GRID */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px 24px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(61,43,31,0.1);
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--amber);
+  }
+
+  .stat-card.green::before { background: var(--sage); }
+  .stat-card.rust::before { background: var(--rust); }
+  .stat-card.light::before { background: var(--light-brown); }
+
+  .stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--light-brown);
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .stat-value {
+    font-family: 'Playfair Display', serif;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--brown);
+    line-height: 1;
+  }
+
+  .stat-sub {
+    font-size: 12px;
+    color: var(--light-brown);
+    margin-top: 6px;
+  }
+
+  .stat-icon {
+    position: absolute;
+    right: 18px;
+    top: 18px;
+    font-size: 28px;
+    opacity: 0.2;
+  }
+
+  /* SECTION LAYOUT */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 24px;
+    margin-bottom: 28px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 16px;
+    color: var(--brown);
+  }
+
+  /* STAFF TABLE */
+  .staff-table { width: 100%; border-collapse: collapse; }
+
+  .staff-table th {
+    text-align: left;
+    padding: 10px 20px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--light-brown);
+    font-weight: 600;
+    background: rgba(212,196,168,0.2);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .staff-table td {
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(212,196,168,0.4);
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
+
+  .staff-table tr:last-child td { border-bottom: none; }
+  .staff-table tr:hover td { background: rgba(200,134,10,0.04); }
+
+  .staff-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .av-1 { background: var(--amber); }
+  .av-2 { background: var(--rust); }
+  .av-3 { background: var(--sage); }
+  .av-4 { background: var(--light-brown); }
+  .av-5 { background: #5B6E8B; }
+  .av-6 { background: #7B4F8E; }
+  .av-7 { background: #2E7D6B; }
+
+  .name-text { font-weight: 500; color: var(--dark); }
+  .name-role { font-size: 11px; color: var(--light-brown); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .badge-green { background: rgba(74,103,65,0.12); color: var(--sage); }
+  .badge-amber { background: rgba(200,134,10,0.12); color: var(--amber); }
+  .badge-red { background: rgba(166,61,47,0.12); color: var(--rust); }
+  .badge-gray { background: rgba(139,99,71,0.1); color: var(--light-brown); }
+
+  .shift-cell { font-size: 12px; color: var(--brown); }
+
+  .action-btns { display: flex; gap: 6px; }
+
+  .icon-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+    color: var(--light-brown);
+  }
+  .icon-btn:hover { background: var(--amber); color: white; border-color: var(--amber); }
+
+  /* SCHEDULE WIDGET */
+  .schedule-list { padding: 6px 0; }
+
+  .schedule-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid rgba(212,196,168,0.35);
+    gap: 12px;
+    transition: background 0.15s;
+  }
+
+  .schedule-item:last-child { border-bottom: none; }
+  .schedule-item:hover { background: rgba(200,134,10,0.04); }
+
+  .sch-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sch-morning { background: var(--amber); }
+  .sch-evening { background: var(--rust); }
+  .sch-night { background: #5B6E8B; }
+
+  .sch-info { flex: 1; }
+  .sch-name { font-size: 13px; font-weight: 500; color: var(--dark); }
+  .sch-time { font-size: 11px; color: var(--light-brown); }
+
+  .sch-pos {
+    font-size: 11px;
+    color: var(--light-brown);
+    background: rgba(212,196,168,0.3);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  /* BOTTOM ROW */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+  }
+
+  .attendance-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .att-name { width: 100px; font-size: 12.5px; color: var(--dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .att-track {
+    flex: 1;
+    height: 7px;
+    background: rgba(212,196,168,0.4);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .att-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: var(--amber);
+    transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .att-fill.low { background: var(--rust); }
+  .att-fill.high { background: var(--sage); }
+
+  .att-pct { font-size: 12px; color: var(--light-brown); font-weight: 500; width: 36px; text-align: right; }
+
+  /* REQUESTS */
+  .request-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(212,196,168,0.35);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .request-item:last-child { border-bottom: none; }
+
+  .req-icon { font-size: 18px; margin-top: 2px; }
+  .req-info { flex: 1; }
+  .req-name { font-size: 13px; font-weight: 500; }
+  .req-desc { font-size: 11.5px; color: var(--light-brown); margin-top: 2px; }
+  .req-date { font-size: 11px; color: rgba(139,99,71,0.6); }
+
+  /* NOTICE BOARD */
+  .notice-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(212,196,168,0.35);
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .notice-item:last-child { border-bottom: none; }
+  .notice-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); margin-top: 5px; flex-shrink: 0; }
+  .notice-text { font-size: 13px; color: var(--dark); line-height: 1.5; }
+  .notice-time { font-size: 11px; color: var(--light-brown); margin-top: 3px; }
+
+  /* PAGE VIEWS */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(26,18,8,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border-radius: 16px;
+    width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    box-shadow: 0 20px 60px rgba(26,18,8,0.3);
+    animation: slideUp 0.25s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-header {
+    padding: 24px 28px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 20px;
+    color: var(--brown);
+  }
+
+  .modal-close {
+    width: 32px; height: 32px;
+    border: 1px solid var(--border);
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    color: var(--light-brown);
+  }
+  .modal-close:hover { background: var(--rust); color: white; border-color: var(--rust); }
+
+  .modal-body { padding: 24px 28px; }
+
+  .form-group { margin-bottom: 18px; }
+  .form-label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--light-brown); margin-bottom: 6px; }
+  .form-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--cream);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--dark);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus { border-color: var(--amber); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .modal-footer { padding: 16px 28px 24px; display: flex; gap: 10px; justify-content: flex-end; }
+
+  /* SEARCH */
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--cream);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 13.5px;
+  }
+  .search-box input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--dark);
+    width: 160px;
+  }
+
+  /* CALENDAR */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; padding: 16px 20px; }
+  .cal-day-name { text-align: center; font-size: 10px; text-transform: uppercase; color: var(--light-brown); font-weight: 600; padding: 4px 0; letter-spacing: 1px; }
+  .cal-day {
+    text-align: center;
+    padding: 7px 4px;
+    font-size: 12.5px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--dark);
+    position: relative;
+  }
+  .cal-day:hover { background: rgba(200,134,10,0.12); }
+  .cal-day.today { background: var(--amber); color: white; font-weight: 700; }
+  .cal-day.has-event::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--rust);
+  }
+  .cal-day.other-month { color: rgba(139,99,71,0.3); }
+
+  /* Notification badge */
+  .notif-badge {
+    background: var(--rust);
+    color: white;
+    border-radius: 50%;
+    width: 18px; height: 18px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+  }
+
+  /* SALARY */
+  .salary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(212,196,168,0.35);
+    font-size: 13.5px;
+  }
+  .salary-row:last-child { border-bottom: none; }
+  .salary-name { font-weight: 500; }
+  .salary-amount { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--sage); font-weight: 700; }
+  .salary-hours { font-size: 11px; color: var(--light-brown); }
+
+  /* Responsive hint for small screens */
+  @media (max-width: 1100px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .grid-2 { grid-template-columns: 1fr; }
+    .grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🍽️</div>
+    <h1>RestaurantHR</h1>
+    <p>Batumi Grand Café</p>
+  </div>
+
+  <nav>
+    <div class="nav-section">მთავარი</div>
+    <div class="nav-item active" onclick="showPage('dashboard', this)">
+      <span class="nav-icon">📊</span> დეშბორდი
+    </div>
+    <div class="nav-item" onclick="showPage('staff', this)">
+      <span class="nav-icon">👥</span> პერსონალი
+      <span style="margin-left:auto" class="notif-badge">12</span>
+    </div>
+    <div class="nav-item" onclick="showPage('schedule', this)">
+      <span class="nav-icon">📅</span> განრიგი
+    </div>
+
+    <div class="nav-section">მართვა</div>
+    <div class="nav-item" onclick="showPage('attendance', this)">
+      <span class="nav-icon">✅</span> დასწრება
+    </div>
+    <div class="nav-item" onclick="showPage('salary', this)">
+      <span class="nav-icon">💳</span> ხელფასები
+    </div>
+    <div class="nav-item" onclick="showPage('requests', this)">
+      <span class="nav-icon">📝</span> მოთხოვნები
+      <span style="margin-left:auto" class="notif-badge">3</span>
+    </div>
+    <div class="nav-section">სხვა</div>
+    <div class="nav-item" onclick="showPage('reports', this)">
+      <span class="nav-icon">📈</span> ანგარიშები
+    </div>
+    <div class="nav-item">
+      <span class="nav-icon">⚙️</span> პარამეტრები
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-card">
+      <div class="user-avatar">ნ</div>
+      <div class="user-info">
+        <p>ნინო კახიძე</p>
+        <span>HR მენეჯერი</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+
+  <!-- DASHBOARD PAGE -->
+  <div id="page-dashboard" class="page active">
+    <div class="topbar">
+      <div class="page-title">დეშბორდი</div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <span>🔍</span>
+          <input type="text" placeholder="ძიება...">
+        </div>
+        <button class="btn btn-primary" onclick="openModal()">+ თანამშრომელი</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- STATS -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">სულ თანამშრომელი</div>
+          <div class="stat-value">42</div>
+          <div class="stat-sub">↑ 3 ამ თვე</div>
+          <div class="stat-icon">👥</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">დღეს მუშაობს</div>
+          <div class="stat-value">28</div>
+          <div class="stat-sub">3 სმენა გამოცდა</div>
+          <div class="stat-icon">✅</div>
+        </div>
+        <div class="stat-card rust">
+          <div class="stat-label">დასვენება / შვებულება</div>
+          <div class="stat-value">8</div>
+          <div class="stat-sub">2 გათვალისწინებული</div>
+          <div class="stat-icon">🌴</div>
+        </div>
+        <div class="stat-card light">
+          <div class="stat-label">ჯამური ხელფასი</div>
+          <div class="stat-value" style="font-size:26px">₾38,400</div>
+          <div class="stat-sub">მარტი 2025</div>
+          <div class="stat-icon">💰</div>
+        </div>
+      </div>
+
+      <!-- TABLE + SCHEDULE -->
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">დღევანდელი გუნდი</div>
+            <button class="btn btn-ghost" style="font-size:12px; padding:6px 14px;" onclick="showPage('staff', document.querySelector('.nav-item:nth-child(3)'))">ყველა →</button>
+          </div>
+          <table class="staff-table">
+            <thead>
+              <tr>
+                <th>სახელი / პოზიცია</th>
+                <th>სტატუსი</th>
+                <th>სმენა</th>
+                <th>ქმედება</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-1">გ</div><div><div class="name-text">გიორგი ბერიძე</div><div class="name-role">მთავარი მზარეული</div></div></div></td>
+                <td><span class="badge badge-green">✓ აქტიური</span></td>
+                <td class="shift-cell">08:00 – 16:00</td>
+                <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-2">ა</div><div><div class="name-text">ანა ცხოვრებაძე</div><div class="name-role">მიმტანი</div></div></div></td>
+                <td><span class="badge badge-green">✓ აქტიური</span></td>
+                <td class="shift-cell">12:00 – 20:00</td>
+                <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-3">ლ</div><div><div class="name-text">ლაშა მახარაძე</div><div class="name-role">ბარმენი</div></div></div></td>
+                <td><span class="badge badge-amber">⚡ დაგვიანება</span></td>
+                <td class="shift-cell">10:00 – 18:00</td>
+                <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-4">ს</div><div><div class="name-text">სოფო ჯიქია</div><div class="name-role">ჰოსტესი</div></div></div></td>
+                <td><span class="badge badge-green">✓ აქტიური</span></td>
+                <td class="shift-cell">11:00 – 19:00</td>
+                <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-5">ნ</div><div><div class="name-text">ნიკა ხაჩიძე</div><div class="name-role">სასტუმრო</div></div></div></td>
+                <td><span class="badge badge-red">✗ არ გამოცდა</span></td>
+                <td class="shift-cell">09:00 – 17:00</td>
+                <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button></div></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-6">მ</div><div><div class="name-text">მარინე ბარბაქაძე</div><div class="name-role">მიმტანი</div></div></div></td>
+                <td><span class="badge badge-gray">🌴 შვებულება</span></td>
+                <td class="shift-cell">— — —</td>
+                <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button></div></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- SCHEDULE WIDGET -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📅 მარტი 2025</div>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-day-name">ო</div>
+            <div class="cal-day-name">ს</div>
+            <div class="cal-day-name">ო</div>
+            <div class="cal-day-name">ხ</div>
+            <div class="cal-day-name">პ</div>
+            <div class="cal-day-name">შ</div>
+            <div class="cal-day-name">კ</div>
+
+            <div class="cal-day other-month">24</div>
+            <div class="cal-day other-month">25</div>
+            <div class="cal-day other-month">26</div>
+            <div class="cal-day other-month">27</div>
+            <div class="cal-day other-month">28</div>
+            <div class="cal-day has-event">1</div>
+            <div class="cal-day">2</div>
+            <div class="cal-day has-event">3</div>
+            <div class="cal-day">4</div>
+            <div class="cal-day has-event">5</div>
+            <div class="cal-day">6</div>
+            <div class="cal-day">7</div>
+            <div class="cal-day">8</div>
+            <div class="cal-day">9</div>
+            <div class="cal-day has-event">10</div>
+            <div class="cal-day">11</div>
+            <div class="cal-day">12</div>
+            <div class="cal-day has-event">13</div>
+            <div class="cal-day">14</div>
+            <div class="cal-day">15</div>
+            <div class="cal-day">16</div>
+            <div class="cal-day has-event">17</div>
+            <div class="cal-day">18</div>
+            <div class="cal-day today">19</div>
+            <div class="cal-day">20</div>
+            <div class="cal-day">21</div>
+            <div class="cal-day has-event">22</div>
+            <div class="cal-day">23</div>
+            <div class="cal-day">24</div>
+            <div class="cal-day">25</div>
+            <div class="cal-day has-event">26</div>
+            <div class="cal-day">27</div>
+            <div class="cal-day">28</div>
+            <div class="cal-day">29</div>
+            <div class="cal-day">30</div>
+            <div class="cal-day">31</div>
+          </div>
+          <div class="card-header" style="border-top:1px solid var(--border); border-bottom:none; padding: 12px 20px;">
+            <div style="font-size:12px; color:var(--light-brown);">დღის სმენა</div>
+          </div>
+          <div class="schedule-list">
+            <div class="schedule-item">
+              <div class="sch-dot sch-morning"></div>
+              <div class="sch-info">
+                <div class="sch-name">გიორგი ბ.</div>
+                <div class="sch-time">08:00 – 16:00</div>
+              </div>
+              <div class="sch-pos">კულინარია</div>
+            </div>
+            <div class="schedule-item">
+              <div class="sch-dot sch-evening"></div>
+              <div class="sch-info">
+                <div class="sch-name">ანა ც.</div>
+                <div class="sch-time">12:00 – 20:00</div>
+              </div>
+              <div class="sch-pos">მიმტანი</div>
+            </div>
+            <div class="schedule-item">
+              <div class="sch-dot sch-night"></div>
+              <div class="sch-info">
+                <div class="sch-name">ლაშა მ.</div>
+                <div class="sch-time">18:00 – 02:00</div>
+              </div>
+              <div class="sch-pos">ბარი</div>
+            </div>
+            <div class="schedule-item">
+              <div class="sch-dot sch-morning"></div>
+              <div class="sch-info">
+                <div class="sch-name">სოფო ჯ.</div>
+                <div class="sch-time">11:00 – 19:00</div>
+              </div>
+              <div class="sch-pos">მიღება</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM ROW -->
+      <div class="grid-3">
+        <!-- ATTENDANCE -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📊 დასწრება (%) — მარტი</div>
+          </div>
+          <div style="padding: 16px 20px;">
+            <div class="attendance-bar">
+              <div class="att-name">გიორგი ბ.</div>
+              <div class="att-track"><div class="att-fill high" style="width:96%"></div></div>
+              <div class="att-pct">96%</div>
+            </div>
+            <div class="attendance-bar">
+              <div class="att-name">ანა ც.</div>
+              <div class="att-track"><div class="att-fill high" style="width:91%"></div></div>
+              <div class="att-pct">91%</div>
+            </div>
+            <div class="attendance-bar">
+              <div class="att-name">ლაშა მ.</div>
+              <div class="att-track"><div class="att-fill" style="width:78%"></div></div>
+              <div class="att-pct">78%</div>
+            </div>
+            <div class="attendance-bar">
+              <div class="att-name">სოფო ჯ.</div>
+              <div class="att-track"><div class="att-fill high" style="width:100%"></div></div>
+              <div class="att-pct">100%</div>
+            </div>
+            <div class="attendance-bar">
+              <div class="att-name">ნიკა ხ.</div>
+              <div class="att-track"><div class="att-fill low" style="width:62%"></div></div>
+              <div class="att-pct">62%</div>
+            </div>
+            <div class="attendance-bar">
+              <div class="att-name">მარინე ბ.</div>
+              <div class="att-track"><div class="att-fill" style="width:85%"></div></div>
+              <div class="att-pct">85%</div>
+            </div>
+            <div class="attendance-bar">
+              <div class="att-name">ხათუნა გ.</div>
+              <div class="att-track"><div class="att-fill high" style="width:93%"></div></div>
+              <div class="att-pct">93%</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- REQUESTS -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📝 მოთხოვნები</div>
+            <span class="notif-badge">3</span>
+          </div>
+          <div>
+            <div class="request-item">
+              <div class="req-icon">🌴</div>
+              <div class="req-info">
+                <div class="req-name">ანა ცხოვრებაძე</div>
+                <div class="req-desc">შვებულება — 25–30 მარტი</div>
+                <div class="req-date">გამოგზავნილია: 18.03.2025</div>
+              </div>
+              <div style="display:flex;gap:4px;">
+                <button class="icon-btn" style="background:rgba(74,103,65,0.1);color:var(--sage);border-color:var(--sage)">✓</button>
+                <button class="icon-btn" style="background:rgba(166,61,47,0.1);color:var(--rust);border-color:var(--rust)">✗</button>
+              </div>
+            </div>
+            <div class="request-item">
+              <div class="req-icon">🔄</div>
+              <div class="req-info">
+                <div class="req-name">ლაშა მახარაძე</div>
+                <div class="req-desc">სმენის ცვლა — 22 მარტი</div>
+                <div class="req-date">გამოგზავნილია: 17.03.2025</div>
+              </div>
+              <div style="display:flex;gap:4px;">
+                <button class="icon-btn" style="background:rgba(74,103,65,0.1);color:var(--sage);border-color:var(--sage)">✓</button>
+                <button class="icon-btn" style="background:rgba(166,61,47,0.1);color:var(--rust);border-color:var(--rust)">✗</button>
+              </div>
+            </div>
+            <div class="request-item">
+              <div class="req-icon">📋</div>
+              <div class="req-info">
+                <div class="req-name">ნიკა ხაჩიძე</div>
+                <div class="req-desc">ავადობის ფურცელი — 3 დღე</div>
+                <div class="req-date">გამოგზავნილია: 19.03.2025</div>
+              </div>
+              <div style="display:flex;gap:4px;">
+                <button class="icon-btn" style="background:rgba(74,103,65,0.1);color:var(--sage);border-color:var(--sage)">✓</button>
+                <button class="icon-btn" style="background:rgba(166,61,47,0.1);color:var(--rust);border-color:var(--rust)">✗</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NOTICE BOARD -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📢 შეტყობინებები</div>
+          </div>
+          <div>
+            <div class="notice-item">
+              <div class="notice-dot"></div>
+              <div>
+                <div class="notice-text">პასტერობის სწავლება — 22 მარტი, 10:00–12:00</div>
+                <div class="notice-time">დღეს გამოქვეყნდა</div>
+              </div>
+            </div>
+            <div class="notice-item">
+              <div class="notice-dot" style="background:var(--sage)"></div>
+              <div>
+                <div class="notice-text">ხელფასი ჩაირიცხება 25 მარტს</div>
+                <div class="notice-time">18 მარტი</div>
+              </div>
+            </div>
+            <div class="notice-item">
+              <div class="notice-dot" style="background:var(--rust)"></div>
+              <div>
+                <div class="notice-text">ფორმის ტარება სავალდებულოა ყველა სმენაში</div>
+                <div class="notice-time">15 მარტი</div>
+              </div>
+            </div>
+            <div class="notice-item">
+              <div class="notice-dot" style="background:var(--light-brown)"></div>
+              <div>
+                <div class="notice-text">ახალი ბარი მენიუ — გაეცანი პორტალზე</div>
+                <div class="notice-time">12 მარტი</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STAFF PAGE -->
+  <div id="page-staff" class="page">
+    <div class="topbar">
+      <div class="page-title">პერსონალი</div>
+      <div class="topbar-actions">
+        <div class="search-box">
+          <span>🔍</span>
+          <input type="text" placeholder="სახელი, პოზიცია...">
+        </div>
+        <button class="btn btn-ghost">⬇ ექსპორტი</button>
+        <button class="btn btn-primary" onclick="openModal()">+ დამატება</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">ყველა თანამშრომელი (42)</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">ყველა</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">კულინარია</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">სერვისი</button>
+            <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;">ბარი</button>
+          </div>
+        </div>
+        <table class="staff-table">
+          <thead>
+            <tr>
+              <th>სახელი / პოზიცია</th>
+              <th>განყოფილება</th>
+              <th>სტატუსი</th>
+              <th>ხელფასი</th>
+              <th>დასწრება</th>
+              <th>ქმედება</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-1">გ</div><div><div class="name-text">გიორგი ბერიძე</div><div class="name-role">მთავარი მზარეული</div></div></div></td>
+              <td><span class="badge badge-amber">კულინარია</span></td>
+              <td><span class="badge badge-green">✓ აქტიური</span></td>
+              <td style="font-family:'Playfair Display',serif;color:var(--sage)">₾2,800</td>
+              <td>96%</td>
+              <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn" style="color:var(--rust)">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-2">ა</div><div><div class="name-text">ანა ცხოვრებაძე</div><div class="name-role">მიმტანი</div></div></div></td>
+              <td><span class="badge badge-green">სერვისი</span></td>
+              <td><span class="badge badge-green">✓ აქტიური</span></td>
+              <td style="font-family:'Playfair Display',serif;color:var(--sage)">₾1,400</td>
+              <td>91%</td>
+              <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn" style="color:var(--rust)">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-3">ლ</div><div><div class="name-text">ლაშა მახარაძე</div><div class="name-role">ბარმენი</div></div></div></td>
+              <td><span class="badge badge-amber">ბარი</span></td>
+              <td><span class="badge badge-amber">⚡ დაგვიანება</span></td>
+              <td style="font-family:'Playfair Display',serif;color:var(--sage)">₾1,800</td>
+              <td>78%</td>
+              <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn" style="color:var(--rust)">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-4">ს</div><div><div class="name-text">სოფო ჯიქია</div><div class="name-role">ჰოსტესი</div></div></div></td>
+              <td><span class="badge badge-green">სერვისი</span></td>
+              <td><span class="badge badge-green">✓ აქტიური</span></td>
+              <td style="font-family:'Playfair Display',serif;color:var(--sage)">₾1,200</td>
+              <td>100%</td>
+              <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn" style="color:var(--rust)">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-5">ნ</div><div><div class="name-text">ნიკა ხაჩიძე</div><div class="name-role">სასტუმრო</div></div></div></td>
+              <td><span class="badge badge-gray">ადმინ.</span></td>
+              <td><span class="badge badge-red">✗ გამოუცდელი</span></td>
+              <td style="font-family:'Playfair Display',serif;color:var(--sage)">₾1,000</td>
+              <td>62%</td>
+              <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn" style="color:var(--rust)">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-6">მ</div><div><div class="name-text">მარინე ბარბაქაძე</div><div class="name-role">მიმტანი</div></div></div></td>
+              <td><span class="badge badge-green">სერვისი</span></td>
+              <td><span class="badge badge-gray">🌴 შვებულება</span></td>
+              <td style="font-family:'Playfair Display',serif;color:var(--sage)">₾1,400</td>
+              <td>85%</td>
+              <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn" style="color:var(--rust)">🗑</button></div></td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-7">ხ</div><div><div class="name-text">ხათუნა გელაშვილი</div><div class="name-role">პასტ. მზარეული</div></div></div></td>
+              <td><span class="badge badge-amber">კულინარია</span></td>
+              <td><span class="badge badge-green">✓ აქტიური</span></td>
+              <td style="font-family:'Playfair Display',serif;color:var(--sage)">₾2,000</td>
+              <td>93%</td>
+              <td><div class="action-btns"><button class="icon-btn">👁</button><button class="icon-btn">✏️</button><button class="icon-btn" style="color:var(--rust)">🗑</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SALARY PAGE -->
+  <div id="page-salary" class="page">
+    <div class="topbar">
+      <div class="page-title">ხელფასები</div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">📊 ანგარიში</button>
+        <button class="btn btn-primary">💳 ყველა გადახდა</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">ჯამი ამ თვე</div>
+          <div class="stat-value" style="font-size:26px">₾38,400</div>
+          <div class="stat-sub">42 თანამშრომელი</div>
+          <div class="stat-icon">💰</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-label">გადახდილია</div>
+          <div class="stat-value" style="font-size:26px">₾0</div>
+          <div class="stat-sub">25 მარტამდე</div>
+          <div class="stat-icon">✅</div>
+        </div>
+        <div class="stat-card rust">
+          <div class="stat-label">ბონუსები</div>
+          <div class="stat-value" style="font-size:26px">₾2,200</div>
+          <div class="stat-sub">8 თანამშრომელი</div>
+          <div class="stat-icon">⭐</div>
+        </div>
+        <div class="stat-card light">
+          <div class="stat-label">გამოქვითვა</div>
+          <div class="stat-value" style="font-size:26px">₾480</div>
+          <div class="stat-sub">გადასახადი</div>
+          <div class="stat-icon">📋</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">მარტი 2025 — ხელფასები</div></div>
+        <div>
+          <div class="salary-row">
+            <div><div class="salary-name">გიორგი ბერიძე</div><div class="salary-hours">168 სთ · კულინარია</div></div>
+            <div style="text-align:right"><div class="salary-amount">₾2,800</div><span class="badge badge-green" style="margin-top:4px;display:inline-block">⏳ მოლოდინში</span></div>
+          </div>
+          <div class="salary-row">
+            <div><div class="salary-name">ხათუნა გელაშვილი</div><div class="salary-hours">160 სთ · კულინარია</div></div>
+            <div style="text-align:right"><div class="salary-amount">₾2,000</div><span class="badge badge-green" style="margin-top:4px;display:inline-block">⏳ მოლოდინში</span></div>
+          </div>
+          <div class="salary-row">
+            <div><div class="salary-name">ლაშა მახარაძე</div><div class="salary-hours">140 სთ + ₾300 ბონუსი</div></div>
+            <div style="text-align:right"><div class="salary-amount">₾2,100</div><span class="badge badge-green" style="margin-top:4px;display:inline-block">⏳ მოლოდინში</span></div>
+          </div>
+          <div class="salary-row">
+            <div><div class="salary-name">ანა ცხოვრებაძე</div><div class="salary-hours">155 სთ · სერვისი</div></div>
+            <div style="text-align:right"><div class="salary-amount">₾1,400</div><span class="badge badge-green" style="margin-top:4px;display:inline-block">⏳ მოლოდინში</span></div>
+          </div>
+          <div class="salary-row">
+            <div><div class="salary-name">მარინე ბარბაქაძე</div><div class="salary-hours">155 სთ · სერვისი</div></div>
+            <div style="text-align:right"><div class="salary-amount">₾1,400</div><span class="badge badge-green" style="margin-top:4px;display:inline-block">⏳ მოლოდინში</span></div>
+          </div>
+          <div class="salary-row">
+            <div><div class="salary-name">სოფო ჯიქია</div><div class="salary-hours">168 სთ · სერვისი</div></div>
+            <div style="text-align:right"><div class="salary-amount">₾1,200</div><span class="badge badge-green" style="margin-top:4px;display:inline-block">⏳ მოლოდინში</span></div>
+          </div>
+          <div class="salary-row">
+            <div><div class="salary-name">ნიკა ხაჩიძე</div><div class="salary-hours">104 სთ · ადმინ.</div></div>
+            <div style="text-align:right"><div class="salary-amount">₾620</div><span class="badge badge-amber" style="margin-top:4px;display:inline-block">⚠️ გამოქვითვა</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ATTENDANCE PAGE -->
+  <div id="page-attendance" class="page">
+    <div class="topbar">
+      <div class="page-title">დასწრება</div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">⬇ ანგარიში</button>
+        <button class="btn btn-primary">+ ხელით შეყვანა</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="card-header"><div class="card-title">19 მარტი 2025 — დასწრება</div></div>
+        <table class="staff-table">
+          <thead>
+            <tr>
+              <th>თანამშრომელი</th>
+              <th>სმენა</th>
+              <th>შემოსვლა</th>
+              <th>გასვლა</th>
+              <th>სტატუსი</th>
+              <th>სულ სთ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-1">გ</div><div><div class="name-text">გიორგი ბ.</div></div></div></td>
+              <td class="shift-cell">08:00–16:00</td>
+              <td style="color:var(--sage);font-weight:500">08:02</td>
+              <td style="color:var(--light-brown)">—</td>
+              <td><span class="badge badge-green">✓ სამსახურში</span></td>
+              <td>7:58 სთ</td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-2">ა</div><div><div class="name-text">ანა ც.</div></div></div></td>
+              <td class="shift-cell">12:00–20:00</td>
+              <td style="color:var(--sage);font-weight:500">12:00</td>
+              <td style="color:var(--light-brown)">—</td>
+              <td><span class="badge badge-green">✓ სამსახურში</span></td>
+              <td>3:59 სთ</td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-3">ლ</div><div><div class="name-text">ლაშა მ.</div></div></div></td>
+              <td class="shift-cell">10:00–18:00</td>
+              <td style="color:var(--rust);font-weight:500">10:34</td>
+              <td style="color:var(--light-brown)">—</td>
+              <td><span class="badge badge-amber">⚡ დაგვიანება</span></td>
+              <td>5:25 სთ</td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-4">ს</div><div><div class="name-text">სოფო ჯ.</div></div></div></td>
+              <td class="shift-cell">11:00–19:00</td>
+              <td style="color:var(--sage);font-weight:500">10:58</td>
+              <td style="color:var(--light-brown)">—</td>
+              <td><span class="badge badge-green">✓ სამსახურში</span></td>
+              <td>4:59 სთ</td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-5">ნ</div><div><div class="name-text">ნიკა ხ.</div></div></div></td>
+              <td class="shift-cell">09:00–17:00</td>
+              <td style="color:var(--rust);font-weight:500">—</td>
+              <td style="color:var(--light-brown)">—</td>
+              <td><span class="badge badge-red">✗ გამოუცდელი</span></td>
+              <td>0 სთ</td>
+            </tr>
+            <tr>
+              <td><div class="staff-name"><div class="avatar av-6">მ</div><div><div class="name-text">მარინე ბ.</div></div></div></td>
+              <td class="shift-cell">—</td>
+              <td style="color:var(--light-brown)">—</td>
+              <td style="color:var(--light-brown)">—</td>
+              <td><span class="badge badge-gray">🌴 შვებულება</span></td>
+              <td>—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEDULE PAGE -->
+  <div id="page-schedule" class="page">
+    <div class="topbar">
+      <div class="page-title">განრიგი</div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">← წინა კვირა</button>
+        <span style="font-weight:600;color:var(--brown)">17–23 მარტი 2025</span>
+        <button class="btn btn-ghost">შემდეგი კვირა →</button>
+        <button class="btn btn-primary" onclick="openModal()">+ სმენა</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="card-header"><div class="card-title">კვირის განრიგი</div></div>
+        <div style="overflow-x:auto;">
+          <table class="staff-table" style="min-width:700px">
+            <thead>
+              <tr>
+                <th>თანამშრომელი</th>
+                <th>ორშ 17</th>
+                <th>სამ 18</th>
+                <th>ოთხ 19</th>
+                <th>ხუთ 20</th>
+                <th>პარ 21</th>
+                <th>შაბ 22</th>
+                <th>კვი 23</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-1">გ</div><div class="name-text">გიორგი ბ.</div></div></td>
+                <td><span class="badge badge-amber">08–16</span></td>
+                <td><span class="badge badge-amber">08–16</span></td>
+                <td><span class="badge badge-amber">08–16</span></td>
+                <td><span class="badge badge-amber">08–16</span></td>
+                <td><span class="badge badge-amber">08–16</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-2">ა</div><div class="name-text">ანა ც.</div></div></td>
+                <td><span class="badge badge-green">12–20</span></td>
+                <td><span class="badge badge-green">12–20</span></td>
+                <td><span class="badge badge-green">12–20</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+                <td><span class="badge badge-green">12–20</span></td>
+                <td><span class="badge badge-green">12–20</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-3">ლ</div><div class="name-text">ლაშა მ.</div></div></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+                <td><span class="badge badge-amber">10–18</span></td>
+                <td><span class="badge badge-amber">10–18</span></td>
+                <td><span class="badge badge-amber">10–18</span></td>
+                <td><span class="badge badge-amber">18–02</span></td>
+                <td><span class="badge badge-amber">18–02</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-4">ს</div><div class="name-text">სოფო ჯ.</div></div></td>
+                <td><span class="badge badge-green">11–19</span></td>
+                <td><span class="badge badge-green">11–19</span></td>
+                <td><span class="badge badge-green">11–19</span></td>
+                <td><span class="badge badge-green">11–19</span></td>
+                <td><span class="badge badge-green">11–19</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+              </tr>
+              <tr>
+                <td><div class="staff-name"><div class="avatar av-7">ხ</div><div class="name-text">ხათუნა გ.</div></div></td>
+                <td><span class="badge badge-amber">07–15</span></td>
+                <td><span class="badge badge-amber">07–15</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+                <td><span class="badge badge-amber">07–15</span></td>
+                <td><span class="badge badge-amber">07–15</span></td>
+                <td><span class="badge badge-amber">07–15</span></td>
+                <td><span class="badge badge-gray">— — —</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REQUESTS PAGE -->
+  <div id="page-requests" class="page">
+    <div class="topbar">
+      <div class="page-title">მოთხოვნები</div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="card-header"><div class="card-title">განხილვის მოლოდინში</div><span class="notif-badge">3</span></div>
+        <div>
+          <div class="request-item" style="padding:16px 24px;">
+            <div class="req-icon" style="font-size:24px;">🌴</div>
+            <div class="req-info">
+              <div class="req-name" style="font-size:15px">ანა ცხოვრებაძე — შვებულება</div>
+              <div class="req-desc" style="font-size:13px">25–30 მარტი 2025 (6 დღე)</div>
+              <div class="req-date">გამოგზავნილია: 18 მარტი · სერვისი</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--sage);border-color:var(--sage)">✓ დამტკიცება</button>
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--rust);border-color:var(--rust)">✗ უარი</button>
+            </div>
+          </div>
+          <div class="request-item" style="padding:16px 24px;">
+            <div class="req-icon" style="font-size:24px;">🔄</div>
+            <div class="req-info">
+              <div class="req-name" style="font-size:15px">ლაშა მახარაძე — სმენის ცვლა</div>
+              <div class="req-desc" style="font-size:13px">22 მარტი: 10–18 → 18–02</div>
+              <div class="req-date">გამოგზავნილია: 17 მარტი · ბარი</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--sage);border-color:var(--sage)">✓ დამტკიცება</button>
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--rust);border-color:var(--rust)">✗ უარი</button>
+            </div>
+          </div>
+          <div class="request-item" style="padding:16px 24px;">
+            <div class="req-icon" style="font-size:24px;">📋</div>
+            <div class="req-info">
+              <div class="req-name" style="font-size:15px">ნიკა ხაჩიძე — ავადობა</div>
+              <div class="req-desc" style="font-size:13px">19–21 მარტი 2025 (3 დღე)</div>
+              <div class="req-date">გამოგზავნილია: 19 მარტი · ადმინ.</div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--sage);border-color:var(--sage)">✓ დამტკიცება</button>
+              <button class="btn btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--rust);border-color:var(--rust)">✗ უარი</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORTS PAGE -->
+  <div id="page-reports" class="page">
+    <div class="topbar">
+      <div class="page-title">ანგარიშები</div>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost">⬇ PDF ექსპორტი</button>
+        <button class="btn btn-primary">📊 ახალი ანგარიში</button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">საშ. დასწრება</div><div class="stat-value">88%</div><div class="stat-sub">↑ 3% გასულ თვეს</div><div class="stat-icon">📊</div></div>
+        <div class="stat-card green"><div class="stat-label">შესრულ. ბონუსი</div><div class="stat-value">8</div><div class="stat-sub">ამ კვარტალში</div><div class="stat-icon">⭐</div></div>
+        <div class="stat-card rust"><div class="stat-label">განრიგი დარღვ.</div><div class="stat-value">5</div><div class="stat-sub">ამ თვე</div><div class="stat-icon">⚠️</div></div>
+        <div class="stat-card light"><div class="stat-label">ახ. თანამშრ.</div><div class="stat-value">3</div><div class="stat-sub">ამ კვარტალში</div><div class="stat-icon">🌱</div></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">📋 ხელმისაწვდომი ანგარიშები</div></div>
+        <div style="padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="border:1px solid var(--border);border-radius:10px;padding:18px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:24px;margin-bottom:8px">📅</div>
+            <div style="font-weight:600;color:var(--brown)">სამუშაო საათები</div>
+            <div style="font-size:12px;color:var(--light-brown);margin-top:4px">ყველა თანამშრომლის სთ/თვე</div>
+          </div>
+          <div style="border:1px solid var(--border);border-radius:10px;padding:18px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:24px;margin-bottom:8px">💳</div>
+            <div style="font-weight:600;color:var(--brown)">ხელფასის ანგარიში</div>
+            <div style="font-size:12px;color:var(--light-brown);margin-top:4px">ყოველთვიური გადახდები</div>
+          </div>
+          <div style="border:1px solid var(--border);border-radius:10px;padding:18px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:24px;margin-bottom:8px">✅</div>
+            <div style="font-weight:600;color:var(--brown)">დასწრების ანგარიში</div>
+            <div style="font-size:12px;color:var(--light-brown);margin-top:4px">% და სტატისტიკა</div>
+          </div>
+          <div style="border:1px solid var(--border);border-radius:10px;padding:18px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--amber)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:24px;margin-bottom:8px">🌴</div>
+            <div style="font-weight:600;color:var(--brown)">შვებულების ანგარიში</div>
+            <div style="font-size:12px;color:var(--light-brown);margin-top:4px">ბალანსი და გამოყენება</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ADD EMPLOYEE MODAL -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">ახალი თანამშრომელი</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">სახელი</label>
+          <input type="text" class="form-input" placeholder="სახელი">
+        </div>
+        <div class="form-group">
+          <label class="form-label">გვარი</label>
+          <input type="text" class="form-input" placeholder="გვარი">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">პოზიცია</label>
+        <select class="form-input">
+          <option>მიმტანი</option>
+          <option>მზარეული</option>
+          <option>ბარმენი</option>
+          <option>ჰოსტესი</option>
+          <option>ადმინისტრატორი</option>
+          <option>სუფ. მზარეული</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">განყოფილება</label>
+        <select class="form-input">
+          <option>სერვისი</option>
+          <option>კულინარია</option>
+          <option>ბარი</option>
+          <option>ადმინ.</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">ხელფასი (₾)</label>
+          <input type="number" class="form-input" placeholder="1200">
+        </div>
+        <div class="form-group">
+          <label class="form-label">სმენა</label>
+          <select class="form-input">
+            <option>დილა (08–16)</option>
+            <option>შუა დღე (12–20)</option>
+            <option>საღამო (16–00)</option>
+            <option>ღამე (22–06)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">ტელეფონი</label>
+        <input type="tel" class="form-input" placeholder="+995 5XX XXX XXX">
+      </div>
+      <div class="form-group">
+        <label class="form-label">შემოსვლის თარიღი</label>
+        <input type="date" class="form-input">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">გაუქმება</button>
+      <button class="btn btn-primary" onclick="saveEmployee()">💾 შენახვა</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showPage(id, el) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + id).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+  }
+
+  function openModal() {
+    document.getElementById('modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+  }
+
+  function closeModalOutside(e) {
+    if (e.target === document.getElementById('modal')) closeModal();
+  }
+
+  function saveEmployee() {
+    alert('თანამშრომელი წარმატებით დამატებულია! ✓');
+    closeModal();
+  }
+</script>
+</body>
+</html>

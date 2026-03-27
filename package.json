@@ -1,0 +1,12 @@
+{
+  "name": "restaurant-operations-os",
+  "private": true,
+  "description": "Local static server for HRCore (Restaurant Operations OS)",
+  "scripts": {
+    "start": "serve -l 8080 -s .",
+    "dev": "serve -l 8080 -s ."
+  },
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
