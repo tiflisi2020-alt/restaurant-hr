@@ -9,6 +9,7 @@ restaurant-hr/node_modules/
 # OS / editor
 .DS_Store
 Thumbs.db
+desktop.ini
 *.swp
 .idea/
 .vscode/
@@ -16,3 +17,10 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Accidental / scratch (repo root dotfile seen on some setups)
+/.txt
+
+# Optional local scratch (uncomment if you use these)
+# *.tmp
+# *.bak
