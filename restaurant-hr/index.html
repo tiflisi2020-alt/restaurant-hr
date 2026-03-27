@@ -418,8 +418,9 @@ body{background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(108,99,255,0.12
     <div class="fg"><label class="fl">ელფოსტა</label><input type="email" id="auth-email" class="fi" autocomplete="username" placeholder="you@restaurant.ge"></div>
     <div class="fg"><label class="fl">პაროლი</label><input type="password" id="auth-pass" class="fi" autocomplete="current-password" placeholder="••••••••"></div>
     <button type="button" class="btn btn-accent" style="width:100%;margin-top:8px" onclick="doLogin()">შესვლა</button>
+    <button type="button" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;font-size:11px" onclick="hrcoreEmergencyBypass()">დროებითი შესვლა (login / Supabase-ის გარეშე)</button>
     <p class="auth-err" id="auth-err"></p>
-    <p style="font-size:10px;color:var(--text3);margin-top:16px;font-family:'JetBrains Mono',monospace;line-height:1.5">პირველი ადმინისტრატორი: Supabase-ში შექმენით მომხმარებელი და profiles ცხრილში role=admin. ხეხვამდე RLS გამორთულია ან პოლიტიკები დაყენებულია — იხ. supabase-production-schema.sql</p>
+    <p style="font-size:10px;color:var(--text3);margin-top:16px;font-family:'JetBrains Mono',monospace;line-height:1.5">პირველი ადმინისტრატორი: Supabase-ში შექმენით მომხმარებელი და profiles ცხრილში role=admin. ან გახსენი იგივე გვერდი ბმულით <code style="font-size:9px">?skipauth=1</code>. ფაილი უნდა იყოს <code style="font-size:9px">index.html</code> (არა სხვა ასლი).</p>
   </div>
 </div>
 
@@ -901,7 +902,39 @@ const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6I
 const sb=supabase.createClient(SU,SK,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let USER_ROLE=null,MY_EMPLOYEE_ID=null,AUTH_USER=null,DUTY_FILTER=null,EMP_WALLET_ROW=null,schedWeekOffsetEmp=0;
 
+/** true = ყოველთვის პირდაპირ ადმინი. false + მაინც შეგიძლია: ?skipauth=1 ან ღილაკი „დროებითი შესვლა“. */
+const DEV_SKIP_LOGIN=true;
+
+function shouldSkipAuth(){
+  if(DEV_SKIP_LOGIN)return true;
+  try{
+    if(new URLSearchParams(location.search).get('skipauth')==='1')return true;
+    if(sessionStorage.getItem('hrcore_skip_auth')==='1')return true;
+  }catch(e){}
+  return false;
+}
+
+function hrcoreEmergencyBypass(){
+  try{sessionStorage.setItem('hrcore_skip_auth','1');}catch(e){}
+  enterDevAdminBypass();
+}
+
+async function enterDevAdminBypass(){
+  USER_ROLE='admin';
+  MY_EMPLOYEE_ID=null;
+  AUTH_USER=null;
+  g('auth-screen')?.classList.add('hidden');
+  g('app-admin')?.classList.remove('hidden');
+  g('app-employee')?.classList.remove('active');
+  const ag=g('admin-global-actions');if(ag)ag.style.display='flex';
+  if(shouldSkipAuth())toast('დროებითი რეჟიმი: შესვლა გამოტოვებულია. პროდაქშენში ჩართე ნორმალური login.','info');
+  try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან კავშირი ვერ მოხერხდა — შეამოწმეთ Supabase URL/გასაღები და SQL სქემა','error');}
+  try{renderCal();}catch(e){console.warn('renderCal',e);}
+  try{await refreshNoticesBell();}catch(e){console.warn('refreshNoticesBell',e);}
+}
+
 async function initAuth(){
+  if(shouldSkipAuth()){await enterDevAdminBypass();return;}
   const{data:{session}}=await sb.auth.getSession();
   if(!session){g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');return;}
   AUTH_USER=session.user;
@@ -941,7 +974,9 @@ async function doLogin(){
   }
   await initAuth();
 }
-async function doLogout(){await sb.auth.signOut();USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
+async function doLogout(){
+  if(shouldSkipAuth()){toast('დროებითი რეჟიმი: გასვლისთვის გამორთე DEV_SKIP_LOGIN, ან წაშალე sessionStorage hrcore_skip_auth და განაახლე გვერდი','error');return;}
+  await sb.auth.signOut();USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
 function empNav(tab,btn){
   document.querySelectorAll('.emp-page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.emp-nav-btn').forEach(b=>b.classList.remove('on'));
@@ -1234,7 +1269,7 @@ async function lAnalytics(){
   // Performance
   const names=P.map(p=>`${p.employees?.first_name||'?'} ${(p.employees?.last_name||'')[0]||''}.`);
   const scores=P.map(p=>gel(p.score));
-  mkChart('ch-perf','bar',{labels:names,datasets:[{data:scores,backgroundColor:scores.map(s=>s>=8?'#43E97B':s>=6?'#FFA502':'#FF4757'),borderRadius:6,borderWidth:0}]},{scales:{y:{beginAtZero:true,max:10,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8888AA'}},x:{grid:{display:false},ticks:{color:'#8888AA',font:{size:10}}}});
+  mkChart('ch-perf','bar',{labels:names,datasets:[{data:scores,backgroundColor:scores.map(s=>s>=8?'#43E97B':s>=6?'#FFA502':'#FF4757'),borderRadius:6,borderWidth:0}]},{scales:{y:{beginAtZero:true,max:10,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8888AA'}},x:{grid:{display:false},ticks:{color:'#8888AA',font:{size:10}}}}});
 
   // Labor vs revenue (trend)
   let labels=[],revData=[],labData=[];
@@ -1750,6 +1785,7 @@ async function lSettings(){
 
 // INIT
 sb.auth.onAuthStateChange((ev,session)=>{
+  if(shouldSkipAuth())return;
   if(ev==='SIGNED_OUT'){USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
   else if(ev==='SIGNED_IN'&&session)initAuth();
 });
