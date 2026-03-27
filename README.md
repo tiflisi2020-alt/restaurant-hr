@@ -21,7 +21,15 @@ npm run start
 პროექტი უკვე ინიციალიზებულია `git`-ით (ფილიალი `main`, `node_modules` არ იტვირთება).
 
 1. GitHub-ზე შექმენით ახალი რეპოზიტორია (უსაწყისო, README-ს ნუ უშვებთ, თუ ლოკალური README გინდათ).
-2. ტერმინალში:
+2. **`setup-github-remote.ps1`** — გახსენი ფაილი, ზედა ორ ხაზში ჩაწერე `CHANGE_ME_USERNAME` და `CHANGE_ME_REPO`, შემდეგ PowerShell-ში:
+
+```powershell
+cd "C:\Users\Restaurant Tiflis\Desktop\HR SYSTEM"
+.\setup-github-remote.ps1
+git push -u origin main
+```
+
+ან ხელით:
 
 ```powershell
 cd "C:\Users\Restaurant Tiflis\Desktop\HR SYSTEM"
@@ -29,4 +37,4 @@ git remote add origin https://github.com/YOUR_USER/YOUR_REPO.git
 git push -u origin main
 ```
 
-`YOUR_USER` / `YOUR_REPO` ჩაანაცვლეთ. პირველ push-ზე GitHub შეიძლება მოგთხოვოთ შესვლა (ბრაუზერი ან Personal Access Token).
+პირველ push-ზე GitHub შეიძლება მოგთხოვოთ შესვლა (ბრაუზერი ან Personal Access Token).
