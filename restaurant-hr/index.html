@@ -410,17 +410,15 @@ body{background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(108,99,255,0.12
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- LOGIN (PIN — არა Supabase Auth) -->
 <div class="auth-screen" id="auth-screen">
   <div class="auth-card">
     <h1>HRCore</h1>
     <div class="sub">Restaurant Operations OS</div>
-    <div class="fg"><label class="fl">ელფოსტა</label><input type="email" id="auth-email" class="fi" autocomplete="username" placeholder="you@restaurant.ge"></div>
-    <div class="fg"><label class="fl">პაროლი</label><input type="password" id="auth-pass" class="fi" autocomplete="current-password" placeholder="••••••••"></div>
+    <div class="fg"><label class="fl">კოდი (4 ციფრი)</label><input type="password" id="auth-pin" class="fi" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="one-time-code" placeholder="••••"></div>
     <button type="button" class="btn btn-accent" style="width:100%;margin-top:8px" onclick="doLogin()">შესვლა</button>
-    <button type="button" class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;font-size:11px" onclick="hrcoreEmergencyBypass()">დროებითი შესვლა (login / Supabase-ის გარეშე)</button>
     <p class="auth-err" id="auth-err"></p>
-    <p style="font-size:10px;color:var(--text3);margin-top:16px;font-family:'JetBrains Mono',monospace;line-height:1.5">პირველი ადმინისტრატორი: Supabase-ში შექმენით მომხმარებელი და profiles ცხრილში role=admin. ან გახსენი იგივე გვერდი ბმულით <code style="font-size:9px">?skipauth=1</code>. ფაილი უნდა იყოს <code style="font-size:9px">index.html</code> (არა სხვა ასლი).</p>
+    <p style="font-size:10px;color:var(--text3);margin-top:16px;font-family:'JetBrains Mono',monospace;line-height:1.5">შესვლა მხოლოდ ლოკალური კოდით. მონაცემები Supabase-იდან იტვირთება anon გასაღებით — თუ RLS ჩართულია admin პოლიტიკებით, ცხრილები ცარიელი შეიძლება იყოს (საჭიროა რეალური Auth ან RLS მორგება). ტესტი: <code style="font-size:9px">?skipauth=1</code></p>
   </div>
 </div>
 
@@ -897,26 +895,34 @@ body{background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(108,99,255,0.12
 </div>
 
 <script>
-const SU='https://xcxzkelvpmynreewflrj.supabase.co';
-const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjeHprZWx2cG15bnJlZXdmbHJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDUwMTksImV4cCI6MjA4OTMyMTAxOX0.swcXV9m5g9Ox1t_QkLz_9suVTnBPanG0QxA1Eo4H-rY';
+const SU='https://drgxhpzjcqwhhldofmfv.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRyZ3hocHpqY3F3aGhsZG9mbWZ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjE3MzIsImV4cCI6MjA5MDE5NzczMn0.EW6drQJ_PV2fQlzwVTEY5ITPgVNsAG1QlfvjtUWe1nw';
 const sb=supabase.createClient(SU,SK,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
 let USER_ROLE=null,MY_EMPLOYEE_ID=null,AUTH_USER=null,DUTY_FILTER=null,EMP_WALLET_ROW=null,schedWeekOffsetEmp=0;
 
-/** true = ყოველთვის პირდაპირ ადმინი. false + მაინც შეგიძლია: ?skipauth=1 ან ღილაკი „დროებითი შესვლა“. */
-const DEV_SKIP_LOGIN=true;
+/** true = PIN გამოტოვება (პირდაპირ ადმინი). ?skipauth=1 — იგივე. */
+const DEV_SKIP_LOGIN=false;
+/** 4 ციფრიანი შესვლის კოდი (მხოლოდ UI; ბრაუზერში ჩანს — პროდაქშენში შეცვალე). */
+const HRCORE_PIN='1234';
+const HRCORE_PIN_KEY='hrcore_pin_unlocked';
 
-function shouldSkipAuth(){
+function isAppUnlocked(){
+  if(DEV_SKIP_LOGIN)return true;
+  try{
+    if(new URLSearchParams(location.search).get('skipauth')==='1')return true;
+    if(sessionStorage.getItem('hrcore_skip_auth')==='1')return true;
+    if(sessionStorage.getItem(HRCORE_PIN_KEY)==='1')return true;
+  }catch(e){}
+  return false;
+}
+
+function shouldToastDevBypass(){
   if(DEV_SKIP_LOGIN)return true;
   try{
     if(new URLSearchParams(location.search).get('skipauth')==='1')return true;
     if(sessionStorage.getItem('hrcore_skip_auth')==='1')return true;
   }catch(e){}
   return false;
-}
-
-function hrcoreEmergencyBypass(){
-  try{sessionStorage.setItem('hrcore_skip_auth','1');}catch(e){}
-  enterDevAdminBypass();
 }
 
 async function enterDevAdminBypass(){
@@ -927,56 +933,35 @@ async function enterDevAdminBypass(){
   g('app-admin')?.classList.remove('hidden');
   g('app-employee')?.classList.remove('active');
   const ag=g('admin-global-actions');if(ag)ag.style.display='flex';
-  if(shouldSkipAuth())toast('დროებითი რეჟიმი: შესვლა გამოტოვებულია. პროდაქშენში ჩართე ნორმალური login.','info');
-  try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან კავშირი ვერ მოხერხდა — შეამოწმეთ Supabase URL/გასაღები და SQL სქემა','error');}
+  if(shouldToastDevBypass())toast('დროებითი რეჟიმი: DEV_SKIP_LOGIN ან skipauth.','info');
+  try{await lDash();}catch(e){console.warn('lDash',e);toast('ბაზასთან კავშირი ვერ მოხერხდა — შეამოწმეთ Supabase URL/გასაღები, RLS','error');}
   try{renderCal();}catch(e){console.warn('renderCal',e);}
   try{await refreshNoticesBell();}catch(e){console.warn('refreshNoticesBell',e);}
 }
 
 async function initAuth(){
-  if(shouldSkipAuth()){await enterDevAdminBypass();return;}
-  const{data:{session}}=await sb.auth.getSession();
-  if(!session){g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');return;}
-  AUTH_USER=session.user;
-  const{data:prof,error:profErr}=await sb.from('profiles').select('role,employee_id').eq('id',session.user.id).maybeSingle();
-  if(profErr||!prof){
-    const ae=g('auth-err');
-    let line='პროფილი ვერ ჩაიტვირთა — დარწმუნდით რომ SQL-ში ჩაწერილია profiles (იგივე UUID რაც Auth-ში).';
-    if(profErr?.message)line+=' '+profErr.message;
-    if(ae)ae.textContent=line;
-    toast('პროფილი ვერ ჩაიტვირთა — შეამოწმეთ profiles ცხრილი','error');
-    await sb.auth.signOut();g('auth-screen')?.classList.remove('hidden');return;
-  }
-  USER_ROLE=prof.role;MY_EMPLOYEE_ID=prof.employee_id;
-  g('auth-screen')?.classList.add('hidden');
-  if(USER_ROLE==='admin'){
-    g('app-admin')?.classList.remove('hidden');g('app-employee')?.classList.remove('active');
-    const ag=g('admin-global-actions');if(ag)ag.style.display='flex';
-    lDash();renderCal();refreshNoticesBell();
-  }else{
-    if(!MY_EMPLOYEE_ID){toast('ანგარიში არ არის დაკავშირებული თანამშრომელთან (employee_id)','error');await sb.auth.signOut();g('auth-screen')?.classList.remove('hidden');return;}
-    g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.add('active');
-    const ag=g('admin-global-actions');if(ag)ag.style.display='none';
-    empNav('sched',document.querySelector('.emp-nav-btn[data-empnav="sched"]'));
-    loadEmpSchedule();refreshNoticesBell(true);
-  }
+  if(isAppUnlocked()){await enterDevAdminBypass();return;}
+  g('auth-screen')?.classList.remove('hidden');
+  g('app-admin')?.classList.add('hidden');
+  g('app-employee')?.classList.remove('active');
+  const ag=g('admin-global-actions');if(ag)ag.style.display='none';
 }
 async function doLogin(){
   g('auth-err').textContent='';
-  const email=g('auth-email').value.trim(),pass=g('auth-pass').value;
-  if(!email||!pass){g('auth-err').textContent='შეიყვანეთ ელფოსტა და პაროლი';return;}
-  const{error}=await sb.auth.signInWithPassword({email,password:pass});
-  if(error){
-    let m=error.message||'შესვლა ვერ მოხერხდა';
-    if(/email not confirmed|confirm/i.test(m))m+=' — გახსენით ბმული ელფოსტაზე, ან Supabase → Authentication → Providers → Email → გამორთეთ „Confirm email“ (ტესტისთვის).';
-    g('auth-err').textContent=m;
-    return;
-  }
-  await initAuth();
+  const pin=(g('auth-pin')?.value||'').trim().replace(/\D/g,'');
+  if(pin.length!==4){g('auth-err').textContent='შეიყვანეთ 4 ციფრი';return;}
+  if(pin!==HRCORE_PIN){g('auth-err').textContent='არასწორი კოდი';return;}
+  try{sessionStorage.setItem(HRCORE_PIN_KEY,'1');}catch(e){}
+  g('auth-pin').value='';
+  await enterDevAdminBypass();
 }
 async function doLogout(){
-  if(shouldSkipAuth()){toast('დროებითი რეჟიმი: გასვლისთვის გამორთე DEV_SKIP_LOGIN, ან წაშალე sessionStorage hrcore_skip_auth და განაახლე გვერდი','error');return;}
-  await sb.auth.signOut();USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
+  try{sessionStorage.removeItem(HRCORE_PIN_KEY);sessionStorage.removeItem('hrcore_skip_auth');}catch(e){}
+  await sb.auth.signOut();
+  USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;
+  g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');
+  const ag=g('admin-global-actions');if(ag)ag.style.display='none';
+}
 function empNav(tab,btn){
   document.querySelectorAll('.emp-page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.emp-nav-btn').forEach(b=>b.classList.remove('on'));
@@ -1785,7 +1770,7 @@ async function lSettings(){
 
 // INIT
 sb.auth.onAuthStateChange((ev,session)=>{
-  if(shouldSkipAuth())return;
+  if(isAppUnlocked())return;
   if(ev==='SIGNED_OUT'){USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
   else if(ev==='SIGNED_IN'&&session)initAuth();
 });

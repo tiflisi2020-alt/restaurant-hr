@@ -296,8 +296,7 @@ SELECT
   d.name AS department,
   COALESCE(sr.net_salary,
     COALESCE(sr.base_salary,0) + COALESCE(sr.bonus,0) + COALESCE(sr.overtime_pay,0) - COALESCE(sr.deduction,0)
-  ) AS computed_net,
-  sr.paid
+  ) AS computed_net
 FROM public.salary_records sr
 JOIN public.employees e ON e.id = sr.employee_id
 LEFT JOIN public.departments d ON d.id = e.department_id;
