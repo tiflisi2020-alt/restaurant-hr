@@ -1,0 +1,18 @@
+# Dependencies
+restaurant-hr/node_modules/
+
+# Local / secrets (if you move keys to env files)
+.env
+.env.local
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*

@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="ka" style="color-scheme:dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0A0A0F">
+<title>Restaurant Operations OS — HRCore</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#F3F1FA;--bg2:#E8E4F4;--surface:#FFFFFF;--card:#FFFFFF;--border:#E2DDED;--border2:#D0C9E0;
+  --accent:#5B4FE0;--accent2:#E8437A;--accent3:#1FB86E;--accent4:#E8890A;
+  --text:#16161F;--text2:#5E5A72;--text3:#9E99B0;
+  --red:#E03150;--green:#0FA968;--yellow:#D97706;--blue:#4C46D5;
+  --glow:0 4px 24px rgba(91,79,224,0.18);
+  --row-divider:rgba(22,20,40,0.06);
+  --table-head-bg:rgba(91,79,224,0.06);
+  --elev-shadow:0 4px 20px rgba(55,45,95,0.07);
+  --elev-strong:0 12px 40px rgba(55,45,95,0.1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+body{font-family:'Syne',sans-serif;background:fixed radial-gradient(1200px 800px at 10% -10%,rgba(91,79,224,0.09),transparent 55%),radial-gradient(900px 700px at 100% 0%,rgba(232,67,122,0.06),transparent 50%),linear-gradient(180deg,var(--bg) 0%,#FAFAFD 50%,var(--bg2) 100%);color:var(--text);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--border)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#B8B0CC}
+
+/* SIDEBAR */
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:rgba(255,255,255,0.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;overflow:hidden;box-shadow:4px 0 32px rgba(55,45,95,0.06)}
+.sidebar::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);opacity:.85}
+.logo{padding:22px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,var(--accent),#7B6FFF);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;color:#fff;flex-shrink:0;box-shadow:var(--glow)}
+.logo-text{font-size:15px;font-weight:800;letter-spacing:1px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-size:9px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;font-family:'JetBrains Mono',monospace}
+nav{flex:1;padding:12px 10px;overflow-y:auto}
+.nav-group{margin-bottom:16px}
+.nav-group-label{font-size:9px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:var(--text3);padding:0 10px;margin-bottom:6px;font-family:'JetBrains Mono',monospace}
+.ni{display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:8px;cursor:pointer;transition:all .2s;color:var(--text2);font-size:12.5px;font-weight:500;position:relative;margin-bottom:1px}
+.ni:hover{background:rgba(91,79,224,0.08);color:var(--text)}
+.ni.active{background:rgba(91,79,224,0.12);color:var(--accent);font-weight:600}
+.ni.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:16px;background:var(--accent);border-radius:0 2px 2px 0}
+.ni-icon{font-size:14px;width:16px;text-align:center}
+.ni-badge{margin-left:auto;background:var(--red);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.sidebar-footer{padding:14px;border-top:1px solid var(--border)}
+.user-widget{display:flex;align-items:center;gap:10px;padding:10px;background:linear-gradient(145deg,rgba(91,79,224,0.06),rgba(255,255,255,0.9));border-radius:10px;border:1px solid var(--border);box-shadow:var(--elev-shadow)}
+.user-av{width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0}
+.user-name{font-size:12px;font-weight:600;line-height:1.2}
+.user-role{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace}
+.status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);margin-left:auto;box-shadow:0 0 0 3px rgba(15,169,104,0.25);flex-shrink:0}
+
+/* MAIN */
+.main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:rgba(255,255,255,0.82);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:50;box-shadow:0 1px 0 rgba(255,255,255,0.8) inset,0 8px 32px rgba(55,45,95,0.04)}
+.page-title{font-size:17px;font-weight:700;display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.page-title .pill{font-size:10px;background:rgba(91,79,224,0.1);color:var(--accent);padding:3px 8px;border-radius:20px;font-weight:600;font-family:'JetBrains Mono',monospace;border:1px solid rgba(91,79,224,0.22)}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.search-bar{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.95);border:1px solid var(--border);border-radius:10px;padding:7px 12px;transition:border-color .2s,box-shadow .2s;width:200px;box-shadow:0 1px 3px rgba(55,45,95,0.04)}
+.search-bar:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,79,224,0.12)}
+.search-bar input{background:transparent;border:none;outline:none;font-family:'Syne',sans-serif;color:var(--text);font-size:12.5px;width:100%}
+.search-bar input::placeholder{color:var(--text2)}
+.btn{padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;font-family:'Syne',sans-serif;transition:all .2s;letter-spacing:0.3px}
+.btn-accent{background:linear-gradient(135deg,var(--accent),#6F64F0);color:#fff;box-shadow:0 4px 16px rgba(91,79,224,0.35)}.btn-accent:hover{background:linear-gradient(135deg,#6A5CE8,#7B72F5);transform:translateY(-1px);box-shadow:0 6px 20px rgba(91,79,224,0.4)}
+.btn-ghost{background:rgba(255,255,255,0.7);color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent);background:#fff}
+.btn-danger{background:rgba(255,71,87,0.1);color:var(--red);border:1px solid rgba(255,71,87,0.3)}.btn-danger:hover{background:var(--red);color:#fff}
+.btn-success{background:rgba(46,213,115,0.1);color:var(--green);border:1px solid rgba(46,213,115,0.3)}.btn-success:hover{background:var(--green);color:#000}
+.btn-sm{padding:5px 11px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10.5px}
+.icon-btn{width:28px;height:28px;border:1px solid var(--border);background:rgba(255,255,255,0.8);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .15s;color:var(--text2)}
+.icon-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent)}
+.icon-btn.del:hover{background:var(--red);border-color:var(--red)}
+
+.content{padding:24px 28px;flex:1}
+
+/* STAT CARDS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;position:relative;overflow:hidden;cursor:default;transition:border-color .3s,transform .2s,box-shadow .25s;box-shadow:var(--elev-shadow)}
+.stat-card:hover{border-color:rgba(91,79,224,0.25);transform:translateY(-2px);box-shadow:var(--elev-strong)}
+.stat-card .glow-bar{position:absolute;bottom:0;left:0;right:0;height:2px}
+.stat-num{font-size:30px;font-weight:800;line-height:1;margin:8px 0 6px;font-family:'JetBrains Mono',monospace}
+.stat-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2)}
+.stat-sub{font-size:11px;color:var(--text2);margin-top:4px}
+.stat-icon{position:absolute;right:16px;top:16px;font-size:22px;opacity:0.12;color:var(--accent)}
+.stat-trend{font-size:10px;font-family:'JetBrains Mono',monospace;margin-top:6px}
+.trend-up{color:var(--green)}.trend-dn{color:var(--red)}
+
+/* GRID LAYOUTS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:20px}
+.g13{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-bottom:20px}
+.g31{display:grid;grid-template-columns:1fr 2fr;gap:18px;margin-bottom:20px}
+
+/* CARDS */
+.card{background:rgba(255,255,255,0.88);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--elev-shadow)}
+.card-header{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px}
+.card-title .dot{width:6px;height:6px;border-radius:50%}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;padding:9px 16px;font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);background:var(--table-head-bg);border-bottom:1px solid var(--border);font-family:'JetBrains Mono',monospace}
+.tbl td{padding:11px 16px;border-bottom:1px solid var(--row-divider);font-size:12.5px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(91,79,224,0.045)}
+.tbl-name{display:flex;align-items:center;gap:9px}
+.emp-av{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#fff;flex-shrink:0}
+.emp-n{font-weight:600;font-size:12.5px}
+.emp-r{font-size:10.5px;color:var(--text2);font-family:'JetBrains Mono',monospace}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:6px;font-size:10.5px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.b-green{background:rgba(15,169,104,0.1);color:#047857;border:1px solid rgba(15,169,104,0.22)}
+.b-yellow{background:rgba(217,119,6,0.1);color:#B45309;border:1px solid rgba(217,119,6,0.22)}
+.b-red{background:rgba(224,49,80,0.1);color:var(--red);border:1px solid rgba(224,49,80,0.22)}
+.b-blue{background:rgba(76,70,213,0.1);color:#4338CA;border:1px solid rgba(76,70,213,0.2)}
+.b-purple{background:rgba(91,79,224,0.1);color:var(--accent);border:1px solid rgba(91,79,224,0.22)}
+.b-gray{background:rgba(94,90,114,0.08);color:var(--text2);border:1px solid var(--border)}
+
+/* PAGE SYSTEM */
+.page{display:none}.page.active{display:block}
+
+/* MODAL */
+.overlay{display:none;position:fixed;inset:0;background:rgba(22,18,45,0.45);backdrop-filter:blur(8px);z-index:200;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:520px;max-height:88vh;overflow-y:auto;box-shadow:var(--elev-strong),0 0 0 1px rgba(255,255,255,0.8) inset;animation:pop .2s cubic-bezier(.34,1.56,.64,1)}
+.modal.lg{width:680px}
+@keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-hd{padding:20px 24px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-title{font-size:15px;font-weight:800}
+.modal-x{width:28px;height:28px;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:14px;color:var(--text2);transition:all .15s;display:flex;align-items:center;justify-content:center}
+.modal-x:hover{background:var(--red);color:#fff;border-color:var(--red)}
+.modal-body{padding:20px 24px}
+.modal-ft{padding:14px 24px 20px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border)}
+.fg{margin-bottom:14px}
+.fl{display:block;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);margin-bottom:5px;font-family:'JetBrains Mono',monospace}
+.fi{width:100%;padding:9px 12px;background:#FDFCFF;border:1px solid var(--border);border-radius:10px;font-size:13px;font-family:'Syne',sans-serif;color:var(--text);outline:none;transition:border-color .2s,box-shadow .2s}
+.fi:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,79,224,0.1)}
+.fi::placeholder{color:var(--text3)}
+.fr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fr3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 18px;border-radius:10px;font-size:12.5px;font-weight:600;z-index:999;animation:pop .3s cubic-bezier(.34,1.56,.64,1);border:1px solid;max-width:300px}
+.t-success{background:rgba(15,169,104,0.12);border-color:rgba(15,169,104,0.35);color:#047857}
+.t-error{background:rgba(224,49,80,0.1);border-color:rgba(224,49,80,0.35);color:var(--red)}
+.t-info{background:rgba(91,79,224,0.1);border-color:rgba(91,79,224,0.3);color:var(--accent)}
+
+/* LOADING */
+.loader{display:flex;align-items:center;justify-content:center;gap:8px;padding:40px;color:var(--text2);font-size:12px;font-family:'JetBrains Mono',monospace}
+.spin{width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:40px;text-align:center;color:var(--text2);font-size:12.5px;font-family:'JetBrains Mono',monospace}
+
+/* SCORE BAR */
+.score-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.score-label{width:110px;font-size:11.5px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'JetBrains Mono',monospace}
+.score-track{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.score-val{width:32px;text-align:right;font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace}
+
+/* CHART WRAP */
+.chart-wrap{position:relative;height:180px;width:100%;padding:0 4px}
+
+/* NOTICE ITEM */
+.nitem{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--row-divider)}
+.nitem:last-child{border-bottom:none}
+.ndot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.nitem-body{flex:1;min-width:0}
+.nitem-title{font-size:12.5px;font-weight:600;line-height:1.3}
+.nitem-time{font-size:10px;color:var(--text2);margin-top:2px;font-family:'JetBrains Mono',monospace}
+
+/* REQ ITEM */
+.ritem{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--row-divider)}
+.ritem:last-child{border-bottom:none}
+
+/* STAR RATING */
+.stars{display:flex;gap:2px}
+.star{font-size:12px;color:var(--border2)}
+.star.on{color:var(--yellow)}
+
+/* TIMELINE */
+.timeline{padding:16px}
+.tl-item{display:flex;gap:12px;margin-bottom:16px;position:relative}
+.tl-item::before{content:'';position:absolute;left:11px;top:24px;bottom:-16px;width:1px;background:var(--border)}
+.tl-item:last-child::before{display:none}
+.tl-dot{width:24px;height:24px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;border:2px solid var(--border);background:var(--surface)}
+.tl-body{flex:1;padding-top:2px}
+.tl-title{font-size:12.5px;font-weight:600}
+.tl-time{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px}
+
+/* TRAINING CARD */
+.tr-card{background:#FAFAFC;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;transition:border-color .2s,box-shadow .2s}
+.tr-card:hover{border-color:rgba(91,79,224,0.25);box-shadow:0 4px 16px rgba(55,45,95,0.06)}
+.tr-card:last-child{margin-bottom:0}
+.tr-title{font-size:13px;font-weight:700}
+.tr-meta{font-size:10.5px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:3px}
+
+/* KPI GAUGE */
+.kpi-item{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--row-divider)}
+.kpi-item:last-child{border-bottom:none}
+.kpi-ring{width:36px;height:36px;position:relative;flex-shrink:0}
+.kpi-ring svg{transform:rotate(-90deg)}
+.kpi-ring-bg{fill:none;stroke:var(--border);stroke-width:4}
+.kpi-ring-fill{fill:none;stroke-width:4;stroke-linecap:round;transition:stroke-dashoffset .8s cubic-bezier(.4,0,.2,1)}
+.kpi-pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.kpi-label{flex:1;min-width:0}
+.kpi-name{font-size:12px;font-weight:600}
+.kpi-sub{font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:1px}
+.kpi-val{text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600}
+
+/* CALENDAR */
+.cal{padding:14px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dn{text-align:center;font-size:9px;font-weight:700;color:var(--text2);padding:4px 0;font-family:'JetBrains Mono',monospace;letter-spacing:1px}
+.cal-d{text-align:center;padding:6px 3px;font-size:11.5px;border-radius:6px;cursor:pointer;transition:all .15s;font-family:'JetBrains Mono',monospace;position:relative}
+.cal-d:hover{background:rgba(91,79,224,0.1)}
+.cal-d.today{background:linear-gradient(135deg,var(--accent),#6F64F0);color:#fff;font-weight:800;box-shadow:var(--glow)}
+.cal-d.other{color:var(--text3)}
+.cal-d.has::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--accent2)}
+.cal-d.shift-morning{background:rgba(67,233,123,0.18);color:var(--accent3);border:1px solid rgba(67,233,123,0.35)}
+.cal-d.shift-night{background:rgba(255,101,132,0.15);color:var(--accent2);border:1px solid rgba(255,101,132,0.35)}
+.cal-d.shift-off{background:rgba(136,136,170,0.12);color:var(--text2);border:1px dashed var(--border2)}
+/* Schedule grid shift chips */
+.shift-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:6px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid transparent;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.shift-chip.morning{background:rgba(31,184,110,0.12);color:#047857;border-color:rgba(31,184,110,0.3);box-shadow:0 2px 8px rgba(31,184,110,0.08)}
+.shift-chip.night{background:rgba(232,67,122,0.1);color:#BE185D;border-color:rgba(232,67,122,0.28);box-shadow:0 2px 8px rgba(232,67,122,0.08)}
+.shift-chip.dayoff{background:rgba(94,90,114,0.08);color:var(--text2);border-color:var(--border2)}
+.shift-chip.default{background:rgba(91,79,224,0.1);color:var(--accent);border-color:rgba(91,79,224,0.28)}
+/* Dept quick filter */
+.dept-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.dept-chip{padding:5px 10px;border-radius:20px;font-size:10.5px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:all .2s;box-shadow:0 1px 3px rgba(55,45,95,0.04)}
+.dept-chip:hover{border-color:var(--accent);color:var(--accent)}
+.dept-chip.on{background:rgba(91,79,224,0.12);border-color:rgba(91,79,224,0.35);color:var(--accent);box-shadow:0 0 0 2px rgba(91,79,224,0.08)}
+/* Mobile */
+.menu-toggle{display:none;width:40px;height:40px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);cursor:pointer;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;box-shadow:var(--elev-shadow)}
+.sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(22,18,45,0.35);z-index:90;backdrop-filter:blur(6px)}
+.sidebar-backdrop.open{display:block}
+.profile-section{margin-bottom:16px;padding:14px;background:linear-gradient(160deg,rgba(91,79,224,0.04),#fff);border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(55,45,95,0.04)}
+.profile-section h4{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:10px}
+.prof-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px}
+@media(max-width:480px){.prof-grid{grid-template-columns:1fr}}
+.issue-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.issue-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:#fff;border:1px solid var(--border);border-radius:8px;font-size:11.5px}
+.hours-summary{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:var(--accent3);margin-top:8px}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-nav-btn{background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:4px 8px;border-radius:6px;transition:all .15s}
+.cal-nav-btn:hover{background:rgba(91,79,224,0.08);color:var(--accent)}
+.cal-month{font-size:12px;font-weight:700}
+
+/* PROGRESS CIRCLE */
+.pcirc{display:flex;flex-direction:column;align-items:center;gap:6px}
+.pcirc-label{font-size:10.5px;color:var(--text2);font-family:'JetBrains Mono',monospace;text-align:center}
+
+/* AVATAR COLORS */
+.av0{background:linear-gradient(135deg,#6C63FF,#5352ED)}
+.av1{background:linear-gradient(135deg,#FF6584,#FF4757)}
+.av2{background:linear-gradient(135deg,#43E97B,#38F9D7)}
+.av3{background:linear-gradient(135deg,#F7971E,#FFD200)}
+.av4{background:linear-gradient(135deg,#5352ED,#2C3E50)}
+.av5{background:linear-gradient(135deg,#A18CD1,#FBC2EB)}
+.av6{background:linear-gradient(135deg,#0BA360,#3CBA92)}
+.av7{background:linear-gradient(135deg,#FF6B6B,#FFE66D)}
+
+/* SCROLL FADE */
+.scroll-x{overflow-x:auto;scrollbar-width:none}.scroll-x::-webkit-scrollbar{display:none}
+
+/* SWITCH */
+.switch{position:relative;display:inline-block;width:36px;height:20px}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:var(--border2);border-radius:10px;transition:.3s}
+.slider::before{content:'';position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s}
+input:checked+.slider{background:var(--accent)}
+input:checked+.slider::before{transform:translateX(16px)}
+
+/* SECTION TABS */
+.tabs{display:flex;gap:4px;background:#F3F1FA;padding:4px;border-radius:10px;border:1px solid var(--border)}
+.tab{padding:6px 14px;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;transition:all .2s;color:var(--text2)}
+.tab.active{background:var(--accent);color:#fff}
+
+/* PROFILE CARD */
+.prof-header{background:linear-gradient(135deg,rgba(91,79,224,0.12),rgba(232,67,122,0.08));border-bottom:1px solid var(--border);padding:24px;display:flex;align-items:center;gap:16px}
+.prof-av{width:60px;height:60px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;border:2px solid rgba(255,255,255,0.5);box-shadow:var(--elev-shadow)}
+.prof-info h2{font-size:18px;font-weight:800}
+.prof-info p{font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-top:2px}
+
+/* DISC */
+.disc-item{display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-bottom:1px solid var(--row-divider)}
+.disc-item:last-child{border-bottom:none}
+.disc-icon{font-size:18px;flex-shrink:0}
+
+/* PAYROLL */
+.pay-row{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--row-divider);font-size:12.5px}
+.pay-row:last-child{border-bottom:none}
+.pay-amount{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--green)}
+
+/* RESPONSIVE */
+@media(max-width:1200px){.stats-grid{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr 1fr}}
+@media(max-width:900px){
+  .menu-toggle{display:flex}
+  .sidebar{transform:translateX(-100%);transition:transform .25s ease;box-shadow:none}
+  .sidebar.open{transform:translateX(0);box-shadow:16px 0 48px rgba(55,45,95,0.15)}
+  .main{margin-left:0}
+  .topbar{padding:10px 14px;flex-wrap:wrap;gap:8px}
+  .content{padding:16px 14px}
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .g13,.g2,.g31,.g3{grid-template-columns:1fr}
+  .search-bar{width:100%;min-width:0;flex:1}
+  .modal,.modal.lg{width:calc(100vw - 24px);max-width:520px;margin:12px;max-height:92vh}
+  .fr,.fr3{grid-template-columns:1fr}
+  .tbl{font-size:11px}
+  .tbl th,.tbl td{padding:8px 10px}
+  .scroll-x-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px}
+  .page-title{font-size:15px}
+  .topbar-right{width:100%;justify-content:flex-end;flex-wrap:wrap}
+}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr}.stat-num{font-size:24px}}
+
+/* ========== Dark glass production + Auth + Employee portal ========== */
+html{color-scheme:dark}
+:root{
+  --bg:#0A0A0F;--surface:#111118;--card:#16161F;--border:#1E1E2E;--border2:#2A2A3E;
+  --accent:#6C63FF;--accent2:#FF6584;--accent3:#43E97B;--accent4:#F7971E;
+  --text:#E8E8F0;--text2:#8888AA;--text3:#555577;
+  --red:#FF4757;--green:#2ED573;--yellow:#FFA502;--blue:#5352ED;
+  --glow:0 0 20px rgba(108,99,255,0.3);
+  --row-divider:rgba(255,255,255,0.04);--table-head-bg:rgba(255,255,255,0.02);
+  --elev-shadow:0 4px 24px rgba(0,0,0,0.35);--elev-strong:0 24px 64px rgba(0,0,0,0.5);
+}
+body{background:radial-gradient(ellipse 80% 50% at 50% -20%,rgba(108,99,255,0.12),transparent),var(--bg)!important;color:var(--text)!important}
+::-webkit-scrollbar-track{background:var(--surface)}::-webkit-scrollbar-thumb{background:var(--border2)}
+.sidebar{background:rgba(17,17,24,0.95)!important;backdrop-filter:blur(20px)!important;border-right:1px solid var(--border)!important;box-shadow:4px 0 40px rgba(0,0,0,0.4)!important}
+.logo-mark{background:var(--accent)!important;box-shadow:var(--glow)!important}
+.user-widget{background:var(--card)!important;border:1px solid var(--border)!important;box-shadow:none!important}
+.status-dot{box-shadow:0 0 8px var(--green)!important}
+.topbar{background:rgba(17,17,24,0.85)!important;backdrop-filter:blur(20px)!important;border-bottom:1px solid var(--border)!important;box-shadow:0 8px 32px rgba(0,0,0,0.2)!important}
+.page-title .pill{background:rgba(108,99,255,0.15)!important;border-color:rgba(108,99,255,0.35)!important;color:var(--accent)!important}
+.search-bar{background:var(--card)!important;border-color:var(--border)!important;box-shadow:none!important}
+.search-bar:focus-within{box-shadow:0 0 0 2px rgba(108,99,255,0.25)!important}
+.btn-accent{background:var(--accent)!important;box-shadow:0 4px 14px rgba(108,99,255,0.4)!important}
+.btn-ghost{background:transparent!important;color:var(--text2)!important;border-color:var(--border)!important}
+.btn-ghost:hover{color:var(--text)!important;border-color:var(--border2)!important;background:rgba(108,99,255,0.06)!important}
+.icon-btn{background:transparent!important;border-color:var(--border)!important}
+.stat-card,.card{background:rgba(22,22,31,0.92)!important;backdrop-filter:blur(16px)!important;border:1px solid var(--border)!important;box-shadow:var(--elev-shadow)!important}
+.stat-card:hover{box-shadow:0 8px 40px rgba(108,99,255,0.12)!important;border-color:var(--border2)!important}
+.stat-icon{opacity:.15!important;color:var(--accent)!important}
+.tbl th{background:var(--table-head-bg)!important}.tbl td{border-color:var(--row-divider)!important}
+.tbl tr:hover td{background:rgba(108,99,255,0.06)!important}
+.b-green{background:rgba(46,213,115,0.12)!important;color:var(--green)!important;border-color:rgba(46,213,115,0.25)!important}
+.b-yellow{background:rgba(255,165,2,0.12)!important;color:var(--yellow)!important}
+.b-red{background:rgba(255,71,87,0.12)!important;color:var(--red)!important}
+.b-blue{background:rgba(83,82,237,0.12)!important;color:#A5A4F0!important}
+.b-purple{background:rgba(108,99,255,0.12)!important;color:var(--accent)!important}
+.b-gray{background:rgba(136,136,170,0.1)!important;color:var(--text2)!important;border-color:rgba(136,136,170,0.15)!important}
+.overlay{background:rgba(0,0,0,0.78)!important}
+.modal{background:var(--surface)!important;border-color:var(--border2)!important;box-shadow:var(--elev-strong)!important}
+.fi{background:var(--bg)!important;border-color:var(--border)!important;color:var(--text)!important}
+.fi:focus{box-shadow:0 0 0 2px rgba(108,99,255,0.2)!important}
+.t-success{background:rgba(46,213,115,0.12)!important;color:var(--green)!important;border-color:rgba(46,213,115,0.35)!important}
+.t-error{background:rgba(255,71,87,0.12)!important;color:var(--red)!important}
+.t-info{background:rgba(108,99,255,0.12)!important;color:var(--accent)!important}
+.ni:hover{background:rgba(108,99,255,0.08)!important}.ni.active{background:rgba(108,99,255,0.15)!important}
+.dept-chip{background:var(--bg)!important;border-color:var(--border)!important;box-shadow:none!important}
+.dept-chip.on{background:rgba(108,99,255,0.2)!important;border-color:rgba(108,99,255,0.45)!important;box-shadow:var(--glow)!important}
+.shift-chip.morning{background:rgba(67,233,123,0.15)!important;color:var(--accent3)!important;border-color:rgba(67,233,123,0.35)!important}
+.shift-chip.night{background:rgba(255,101,132,0.12)!important;color:var(--accent2)!important}
+.shift-chip.dayoff{background:rgba(136,136,170,0.1)!important;color:var(--text2)!important}
+.shift-chip.default{background:rgba(108,99,255,0.12)!important;color:var(--accent)!important}
+.menu-toggle{background:var(--card)!important;border-color:var(--border)!important;box-shadow:none!important}
+.sidebar-backdrop{background:rgba(0,0,0,0.55)!important}
+.profile-section{background:var(--bg)!important;border-color:var(--border)!important;box-shadow:none!important}
+.issue-item{background:var(--surface)!important}
+.tr-card{background:var(--bg)!important}.tr-card:hover{box-shadow:0 4px 20px rgba(108,99,255,0.08)!important}
+.cal-d.today{background:var(--accent)!important;box-shadow:var(--glow)!important}
+.cal-nav-btn:hover{background:var(--card)!important;color:var(--text)!important}
+.tabs{background:var(--bg)!important}
+.prof-header{background:linear-gradient(135deg,rgba(108,99,255,0.2),rgba(255,101,132,0.1))!important}
+.prof-av{border-color:rgba(255,255,255,0.15)!important}
+
+.auth-screen{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at 50% 0%,rgba(108,99,255,0.15),transparent 50%),var(--bg)}
+.auth-screen.hidden{display:none!important}
+.auth-card{width:100%;max-width:400px;background:rgba(22,22,31,0.9);backdrop-filter:blur(24px);border:1px solid var(--border2);border-radius:20px;padding:32px;box-shadow:var(--elev-strong),0 0 0 1px rgba(108,99,255,0.15) inset}
+.auth-card h1{font-size:22px;font-weight:800;margin-bottom:4px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.auth-card .sub{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-bottom:24px}
+.auth-err{font-size:12px;color:var(--red);margin-top:8px;min-height:18px}
+.app-shell.hidden{display:none!important}
+.emp-shell{display:none;flex-direction:column;min-height:100vh;padding-bottom:72px}
+.emp-shell.active{display:flex}
+.emp-topbar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(17,17,24,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
+.emp-page{display:none;padding:16px;flex:1}.emp-page.active{display:block}
+.emp-bottom-nav{position:fixed;left:0;right:0;bottom:0;height:64px;background:rgba(17,17,24,0.95);backdrop-filter:blur(20px);border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;z-index:100;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -4px 24px rgba(0,0,0,0.35)}
+.emp-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px;border:none;background:transparent;color:var(--text2);font-size:9px;font-family:'JetBrains Mono',monospace;cursor:pointer;transition:color .2s}
+.emp-nav-btn.on{color:var(--accent)}.emp-nav-btn span{font-size:18px}
+.bell-wrap{position:relative}
+.bell-panel{display:none;position:absolute;right:0;top:110%;width:min(360px,calc(100vw - 32px));max-height:70vh;overflow-y:auto;background:var(--surface);border:1px solid var(--border2);border-radius:14px;box-shadow:var(--elev-strong);z-index:120;padding:8px}
+.bell-panel.open{display:block}
+.bell-dot{position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:var(--red);border-radius:50%;box-shadow:0 0 8px var(--red)}
+.duty-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.duty-chip{padding:5px 12px;border-radius:20px;font-size:10px;font-weight:700;font-family:'JetBrains Mono',monospace;border:1px solid var(--border);background:var(--bg);color:var(--text2);cursor:pointer}
+.duty-chip.on{background:rgba(108,99,255,0.2);border-color:var(--accent);color:var(--accent);box-shadow:var(--glow)}
+.dutyBadge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.duty-active{background:rgba(46,213,115,0.15);color:var(--green);border:1px solid rgba(46,213,115,0.3)}
+.duty-break{background:rgba(255,165,2,0.15);color:var(--yellow);border:1px solid rgba(255,165,2,0.3)}
+.duty-off{background:rgba(136,136,170,0.12);color:var(--text2);border:1px solid var(--border)}
+.health-warn-pulse{animation:pulseR 1.5s ease-in-out infinite}
+@keyframes pulseR{0%,100%{box-shadow:0 0 0 0 rgba(255,71,87,0.4)}50%{box-shadow:0 0 12px 2px rgba(255,71,87,0.35)}}
+@media(min-width:901px){.emp-bottom-nav{display:none}.emp-shell{padding-bottom:0}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-card">
+    <h1>HRCore</h1>
+    <div class="sub">Restaurant Operations OS</div>
+    <div class="fg"><label class="fl">ელფოსტა</label><input type="email" id="auth-email" class="fi" autocomplete="username" placeholder="you@restaurant.ge"></div>
+    <div class="fg"><label class="fl">პაროლი</label><input type="password" id="auth-pass" class="fi" autocomplete="current-password" placeholder="••••••••"></div>
+    <button type="button" class="btn btn-accent" style="width:100%;margin-top:8px" onclick="doLogin()">შესვლა</button>
+    <p class="auth-err" id="auth-err"></p>
+    <p style="font-size:10px;color:var(--text3);margin-top:16px;font-family:'JetBrains Mono',monospace;line-height:1.5">პირველი ადმინისტრატორი: Supabase-ში შექმენით მომხმარებელი და profiles ცხრილში role=admin. ხეხვამდე RLS გამორთულია ან პოლიტიკები დაყენებულია — იხ. supabase-production-schema.sql</p>
+  </div>
+</div>
+
+<div class="sidebar-backdrop" id="sb-bg" onclick="closeSidebar()"></div>
+
+<!-- ADMIN APP -->
+<div id="app-admin" class="app-shell hidden">
+<div id="admin-global-actions" style="position:fixed;top:12px;right:16px;z-index:150;display:none;align-items:center;gap:10px">
+  <div class="bell-wrap">
+    <button type="button" class="icon-btn" onclick="toggleAdminBell()" aria-label="Announcements" style="position:relative;width:36px;height:36px">🔔<span class="bell-dot" id="admin-bell-dot" style="display:none"></span></button>
+    <div class="bell-panel" id="admin-bell-panel" style="right:0;left:auto"></div>
+  </div>
+  <button type="button" class="btn btn-ghost btn-sm" onclick="doLogout()">გასვლა</button>
+</div>
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-mark">HR</div>
+    <div><div class="logo-text">HRCore</div><div class="logo-sub">Restaurant Operations OS</div></div>
+  </div>
+  <nav>
+    <div class="nav-group">
+      <div class="nav-group-label">Overview</div>
+      <div class="ni active" onclick="go('dashboard',this)"><span class="ni-icon">⬡</span>დეშბორდი</div>
+      <div class="ni" onclick="go('analytics',this)"><span class="ni-icon">◈</span>ანალიტიკა</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">People</div>
+      <div class="ni" onclick="go('staff',this)"><span class="ni-icon">◉</span>პერსონალი</div>
+      <div class="ni" onclick="go('performance',this)"><span class="ni-icon">◆</span>შეფასება</div>
+      <div class="ni" onclick="go('training',this)"><span class="ni-icon">◎</span>სწავლება</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Operations</div>
+      <div class="ni" onclick="go('schedule',this)"><span class="ni-icon">▦</span>განრიგი</div>
+      <div class="ni" onclick="go('attendance',this)"><span class="ni-icon">▣</span>დასწრება</div>
+      <div class="ni" onclick="go('overtime',this)"><span class="ni-icon">◳</span>ოვერთაიმი</div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Finance</div>
+      <div class="ni" onclick="go('payroll',this)"><span class="ni-icon">◈</span>ხელფასები</div>
+      <div class="ni" onclick="go('requests',this)"><span class="ni-icon">◇</span>მოთხოვნები<span class="ni-badge" id="req-nb" style="display:none">0</span></div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Admin</div>
+      <div class="ni" onclick="go('documents',this)"><span class="ni-icon">▤</span>დოკუმენტები</div>
+      <div class="ni" onclick="go('disciplinary',this)"><span class="ni-icon">◬</span>დისციპლინა</div>
+      <div class="ni" onclick="go('notices',this)"><span class="ni-icon">◯</span>შეტყობინება</div>
+      <div class="ni" onclick="go('settings',this)"><span class="ni-icon">⬡</span>პარამეტრები</div>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-widget">
+      <div class="user-av">ნ</div>
+      <div><div class="user-name">ნინო კახიძე</div><div class="user-role">HR Manager</div></div>
+      <div class="status-dot"></div>
+    </div>
+  </div>
+</aside>
+
+<div class="main">
+
+<!-- DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div class="topbar">
+    <div class="page-title">დეშბორდი <span class="pill">LIVE</span></div>
+    <div class="topbar-right"><button class="btn btn-accent" onclick="om('emp')">+ თანამშრომელი</button></div>
+  </div>
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="glow-bar" style="background:linear-gradient(90deg,var(--accent),transparent)"></div><div class="stat-label">სულ</div><div class="stat-num" id="ds1" style="color:var(--accent)">—</div><div class="stat-sub" id="ds1s">იტვირთება</div><div class="stat-icon">◉</div></div>
+      <div class="stat-card"><div class="glow-bar" style="background:linear-gradient(90deg,var(--green),transparent)"></div><div class="stat-label">სამსახურში</div><div class="stat-num" id="ds2" style="color:var(--green)">—</div><div class="stat-sub">დღეს</div><div class="stat-icon">✓</div></div>
+      <div class="stat-card"><div class="glow-bar" style="background:linear-gradient(90deg,var(--yellow),transparent)"></div><div class="stat-label">მოლოდინი</div><div class="stat-num" id="ds3" style="color:var(--yellow)">—</div><div class="stat-sub">მოთხოვნები</div><div class="stat-icon">◇</div></div>
+      <div class="stat-card"><div class="glow-bar" style="background:linear-gradient(90deg,var(--accent2),transparent)"></div><div class="stat-label">ხელფასი</div><div class="stat-num" id="ds4" style="color:var(--accent2);font-size:22px">—</div><div class="stat-sub" id="ds4-sub">—</div><div class="stat-icon">₾</div></div>
+    </div>
+    <div class="g13">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>პერსონალი</div><button class="btn btn-ghost btn-sm" onclick="go('staff',document.querySelectorAll('.ni')[4])">ყველა →</button></div>
+        <div id="d-staff"><div class="loader"><div class="spin"></div>loading...</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="dot" style="background:var(--yellow)"></div>მოთხოვნები</div><span id="req-nb2" class="badge b-red" style="display:none">0</span></div>
+          <div id="d-reqs"><div class="loader"><div class="spin"></div>loading...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="dot" style="background:var(--green)"></div>შეტყობინება</div></div>
+          <div id="d-notices"><div class="loader"><div class="spin"></div>loading...</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="g3">
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent3)"></div>დასწრება %</div></div><div id="d-att" style="padding:14px 16px"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent4)"></div>KPI</div></div><div id="d-kpi"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent2)"></div>კალენდარი</div></div>
+        <div class="cal" id="d-cal"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS -->
+<div id="page-analytics" class="page">
+  <div class="topbar"><div class="page-title">ანალიტიკა <span class="pill">Charts</span></div></div>
+  <div class="content">
+    <div class="g2">
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>ხელფასი / განყოფ.</div></div><div class="chart-wrap" style="height:220px;padding:14px"><canvas id="ch-dept"></canvas></div></div>
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent2)"></div>სტატუს განაწილება</div></div><div class="chart-wrap" style="height:220px;padding:14px"><canvas id="ch-status"></canvas></div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent3)"></div>დასწრება ტენდენცია</div></div><div class="chart-wrap" style="height:200px;padding:14px"><canvas id="ch-att"></canvas></div></div>
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent4)"></div>შეფასების სკოლი</div></div><div class="chart-wrap" style="height:200px;padding:14px"><canvas id="ch-perf"></canvas></div></div>
+    </div>
+    <div class="card" style="margin-top:18px">
+      <div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>საოპერაციო: შრომა vs შემოსავალი</div></div>
+      <div class="chart-wrap" style="height:260px;padding:14px"><canvas id="ch-labor-rev"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF -->
+<div id="page-staff" class="page">
+  <div class="topbar">
+    <div class="page-title">პერსონალი</div>
+    <div class="topbar-right">
+      <div class="search-bar"><span>⌕</span><input id="sq" placeholder="ძიება..." oninput="filterStaff()"></div>
+      <button class="btn btn-accent" onclick="om('emp')">+ დამატება</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent3)"></div>განყოფილება (სწრაფი ფილტრი)</div></div>
+      <div style="padding:12px 16px 8px"><div class="dept-chips" id="dept-quick"></div></div>
+      <div style="padding:0 16px 16px"><div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:8px">Duty (სტატუსი)</div><div class="duty-chips" id="duty-quick"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><div class="dot" style="background:var(--accent)"></div><span id="stitle">პერსონალი</span></div>
+        <div id="dbtns" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+      </div>
+      <div class="scroll-x-wrap"><div id="sw"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PERFORMANCE -->
+<div id="page-performance" class="page">
+  <div class="topbar"><div class="page-title">შეფასება <span class="pill" id="perf-pill">—</span></div><div class="topbar-right"><button class="btn btn-accent" onclick="om('review')">+ შეფასება</button></div></div>
+  <div class="content">
+    <div id="perf-wrap"><div class="loader"><div class="spin"></div>loading...</div></div>
+  </div>
+</div>
+
+<!-- TRAINING -->
+<div id="page-training" class="page">
+  <div class="topbar"><div class="page-title">სწავლება</div><div class="topbar-right"><button class="btn btn-accent" onclick="om('training')">+ სწავლება</button></div></div>
+  <div class="content">
+    <div id="train-wrap"><div class="loader"><div class="spin"></div>loading...</div></div>
+  </div>
+</div>
+
+<!-- SCHEDULE -->
+<div id="page-schedule" class="page">
+  <div class="topbar"><div class="page-title">კვირეული განრიგი</div><div class="topbar-right" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button type="button" class="btn btn-ghost btn-sm" onclick="schedWeekNav(-1)">← წინა</button><span id="sched-week" style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace"></span><button type="button" class="btn btn-ghost btn-sm" onclick="schedWeekNav(1)">შემდეგი →</button></div></div>
+  <div class="content">
+    <div class="card" style="margin-bottom:12px;padding:12px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;font-size:11px;color:var(--text2)">
+      <span class="shift-chip morning">დილის სმენა</span>
+      <span class="shift-chip night">ღამის სმენა</span>
+      <span class="shift-chip dayoff">დასვენება</span>
+      <span class="shift-chip default">სხვა / DB სმენა</span>
+    </div>
+    <div class="card scroll-x-wrap"><div id="sched-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+  </div>
+</div>
+
+<!-- ATTENDANCE -->
+<div id="page-attendance" class="page">
+  <div class="topbar"><div class="page-title">დასწრება</div><div class="topbar-right"><button class="btn btn-accent" onclick="om('checkin')">+ ჩაწერა</button></div></div>
+  <div class="content">
+    <div class="g2" style="margin-bottom:18px">
+      <div class="card">
+        <div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent3)"></div>საათების დათვლა (Attendance)</div></div>
+        <div style="padding:16px 18px">
+          <div class="fr">
+            <div class="fg"><label class="fl">დაწყება</label><input type="date" id="ah-from" class="fi"></div>
+            <div class="fg"><label class="fl">დასასრული</label><input type="date" id="ah-to" class="fi"></div>
+          </div>
+          <div class="fg"><label class="fl">თანამშრომელი</label><select id="ah-emp" class="fi"><option value="">— ყველა (ჯამი) —</option></select></div>
+          <button type="button" class="btn btn-accent btn-sm" onclick="calcAttendanceHours()">დათვალე საათები</button>
+          <div id="ah-out" class="hours-summary" style="min-height:32px">—</div>
+          <p style="font-size:10px;color:var(--text3);margin-top:8px;font-family:'JetBrains Mono',monospace">ინდ. ჩაწერებიდან check-in/out; ერთი დღის რამდენიმე ნაწილი ჯამდება.</p>
+        </div>
+      </div>
+      <div class="card" style="min-height:120px"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>მითითება</div></div><div style="padding:14px 18px;font-size:12px;color:var(--text2);line-height:1.55">აირჩიეთ პერიოდი და დააჭირეთ „დათვალე“. ერთი თანამშრომლის არჩევისას ჩანს მხოლოდ მისი საათები. ცარიელი თანამშრომელი = ყველა ჩანაწერის ჯამი არჩეულ პერიოდში.</div></div>
+    </div>
+    <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--green)"></div>დღეს — <span id="att-today" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)"></span></div></div><div id="att-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+  </div>
+</div>
+
+<!-- OVERTIME -->
+<div id="page-overtime" class="page">
+  <div class="topbar"><div class="page-title">ოვერთაიმი</div><div class="topbar-right"><button class="btn btn-accent" onclick="om('overtime')">+ ჩაწერა</button></div></div>
+  <div class="content"><div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--yellow)"></div>ოვერთაიმ ჩანაწერები</div></div><div id="ot-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div></div>
+</div>
+
+<!-- PAYROLL -->
+<div id="page-payroll" class="page">
+  <div class="topbar"><div class="page-title">ხელფასები <span class="pill" id="pay-pill">—</span></div><div class="topbar-right"><button class="btn btn-accent" onclick="om('salary')">+ ჩაწერა</button></div></div>
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card"><div class="glow-bar" style="background:var(--accent)"></div><div class="stat-label">ჯამი</div><div class="stat-num" id="pay-t" style="font-size:22px;color:var(--accent)">—</div><div class="stat-icon">Σ</div></div>
+      <div class="stat-card"><div class="glow-bar" style="background:var(--green)"></div><div class="stat-label">ბონუსი</div><div class="stat-num" id="pay-b" style="font-size:22px;color:var(--green)">—</div><div class="stat-icon">+</div></div>
+      <div class="stat-card"><div class="glow-bar" style="background:var(--red)"></div><div class="stat-label">გამოქვითვა</div><div class="stat-num" id="pay-d" style="font-size:22px;color:var(--red)">—</div><div class="stat-icon">−</div></div>
+      <div class="stat-card"><div class="glow-bar" style="background:var(--yellow)"></div><div class="stat-label">სუფთა</div><div class="stat-num" id="pay-n" style="font-size:22px;color:var(--yellow)">—</div><div class="stat-icon">✓</div></div>
+    </div>
+    <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--green)"></div>ხელფასის სია</div></div><div id="pay-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+  </div>
+</div>
+
+<!-- REQUESTS -->
+<div id="page-requests" class="page">
+  <div class="topbar"><div class="page-title">მოთხოვნები</div></div>
+  <div class="content"><div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--yellow)"></div>მოლოდინში</div><span id="req-cnt" class="badge b-red"></span></div><div id="req-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div></div>
+</div>
+
+<!-- DOCUMENTS -->
+<div id="page-documents" class="page">
+  <div class="topbar"><div class="page-title">დოკუმენტები</div><div class="topbar-right"><button class="btn btn-accent" onclick="om('doc')">+ დოკ.</button></div></div>
+  <div class="content"><div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--blue)"></div>ყველა დოკუმენტი</div></div><div id="doc-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div></div>
+</div>
+
+<!-- DISCIPLINARY -->
+<div id="page-disciplinary" class="page">
+  <div class="topbar"><div class="page-title">დისციპლინა</div><div class="topbar-right"><button class="btn btn-danger" onclick="om('disc')">+ გაფრთხილება</button></div></div>
+  <div class="content"><div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--red)"></div>ჩანაწერები</div></div><div id="disc-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div></div>
+</div>
+
+<!-- NOTICES -->
+<div id="page-notices" class="page">
+  <div class="topbar"><div class="page-title">შეტყობინებები</div><div class="topbar-right"><button class="btn btn-accent" onclick="om('notice')">+ დამატება</button></div></div>
+  <div class="content"><div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>ყველა</div></div><div id="not-wrap"><div class="loader"><div class="spin"></div>loading...</div></div></div></div>
+</div>
+
+<!-- SETTINGS -->
+<div id="page-settings" class="page">
+  <div class="topbar"><div class="page-title">პარამეტრები</div></div>
+  <div class="content">
+    <div class="g2">
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>ხელფასის წესები</div></div><div id="pay-settings"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent2)"></div>სმენები</div></div><div id="shift-settings"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+    </div>
+    <div class="g2">
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent3)"></div>განყოფილებები</div></div><div id="dept-settings"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+      <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent4)"></div>DB სტატისტიკა</div></div><div id="db-stats"><div class="loader"><div class="spin"></div>loading...</div></div></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /app-admin -->
+
+<!-- EMPLOYEE SELF-SERVICE PORTAL -->
+<div id="app-employee" class="emp-shell">
+  <header class="emp-topbar">
+    <div style="font-weight:800;font-size:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">HRCore</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="bell-wrap">
+        <button type="button" class="icon-btn" onclick="toggleBell()" aria-label="Notices" style="position:relative">🔔<span class="bell-dot" id="emp-bell-dot" style="display:none"></span></button>
+        <div class="bell-panel" id="emp-bell-panel"></div>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="doLogout()">გასვლა</button>
+    </div>
+  </header>
+  <div id="emp-page-sched" class="emp-page active">
+    <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>ჩემი განრიგი</div><span id="emp-sched-week" style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace"></span></div><div id="emp-sched-body" class="scroll-x-wrap" style="padding:8px"><div class="loader"><div class="spin"></div></div></div></div>
+  </div>
+  <div id="emp-page-wallet" class="emp-page">
+    <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--green)"></div>ჩემი საფულე</div></div>
+      <div style="padding:16px 18px">
+        <div id="emp-wallet-body"><div class="loader"><div class="spin"></div></div></div>
+        <button type="button" class="btn btn-accent btn-sm" style="margin-top:14px" onclick="genEmpPaystub()">PDF Paystub</button>
+      </div>
+    </div>
+  </div>
+  <div id="emp-page-clock" class="emp-page">
+    <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent3)"></div>სამუშაო დრო</div></div>
+      <div style="padding:20px 18px;text-align:center">
+        <p id="emp-clock-status" style="font-size:13px;color:var(--text2);margin-bottom:16px">—</p>
+        <button type="button" class="btn btn-accent" id="emp-btn-clock" onclick="empClockAction()" style="min-width:200px">დაწყება</button>
+        <p id="emp-loc-hint" style="font-size:10px;color:var(--text3);margin-top:16px;font-family:'JetBrains Mono',monospace">ლოკაცია ინახება clock-in/out-ზე (თქვენი თანხმობით)</p>
+      </div>
+    </div>
+  </div>
+  <div id="emp-page-req" class="emp-page">
+    <div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--yellow)"></div>მოთხოვნები</div><button class="btn btn-accent btn-sm" onclick="om('empreq')">+ ახალი</button></div>
+      <div id="emp-req-body" style="padding:8px"><div class="loader"><div class="spin"></div></div></div>
+    </div>
+  </div>
+  <nav class="emp-bottom-nav" aria-label="Employee navigation">
+    <button type="button" class="emp-nav-btn on" data-empnav="sched" onclick="empNav('sched',this)"><span>▦</span>განრიგი</button>
+    <button type="button" class="emp-nav-btn" data-empnav="wallet" onclick="empNav('wallet',this)"><span>◈</span>საფულე</button>
+    <button type="button" class="emp-nav-btn" data-empnav="clock" onclick="empNav('clock',this)"><span>▣</span>Clock</button>
+    <button type="button" class="emp-nav-btn" data-empnav="req" onclick="empNav('req',this)"><span>◇</span>მოთხოვნა</button>
+  </nav>
+</div>
+
+<!-- MODALS -->
+<!-- EMPLOYEE -->
+<div class="overlay" id="m-emp" onclick="if(event.target===this)cm('emp')">
+  <div class="modal lg">
+    <div class="modal-hd"><div class="modal-title" id="emp-mt">ახალი თანამშრომელი</div><button class="modal-x" onclick="cm('emp')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="eid">
+      <div class="fr"><div class="fg"><label class="fl">სახელი</label><input id="efn" class="fi" placeholder="სახელი"></div><div class="fg"><label class="fl">გვარი</label><input id="eln" class="fi" placeholder="გვარი"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">ელ-ფოსტა</label><input id="eem" type="email" class="fi" placeholder="email@restaurant.ge"></div><div class="fg"><label class="fl">ტელეფონი</label><input id="eph" class="fi" placeholder="+995 5XX XXX XXX"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">განყოფილება</label><select id="edept" class="fi" onchange="lpos()"><option value="">— აირჩიე —</option></select></div><div class="fg"><label class="fl">პოზიცია</label><select id="epos" class="fi"><option value="">— აირჩიე —</option></select></div></div>
+      <div class="fr"><div class="fg"><label class="fl">პირადი ნომერი / ID</label><input id="enid" class="fi" placeholder="National ID"></div><div class="fg"><label class="fl">ჯანმრთელ. ცნობის ვადა</label><input id="ehealth" type="date" class="fi" title="Health certificate expiry"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">კონტრაქტი დაწყება</label><input id="ectrstart" type="date" class="fi"></div><div class="fg"><label class="fl">კონტრაქტი დასრულება</label><input id="ectrend" type="date" class="fi"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">ხელფასი თვეში (₾)</label><input id="esal" type="number" class="fi" placeholder="1200"></div><div class="fg"><label class="fl">საათის ფასი (₾/სთ)</label><input id="ehour" type="number" step="0.01" class="fi" placeholder="12.5" title="Smart payroll"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">სტატუსი (HR)</label><select id="estat" class="fi"><option value="probation">⏳ საცდელი</option><option value="active">✓ აქტიური</option><option value="on_leave">🏖 შვებულება / ავადმყოფობა</option><option value="terminated">✗ გათ. / დასრულებული</option></select></div><div class="fg"><label class="fl">Duty (სართული)</label><select id="eduty" class="fi"><option value="active">● სამსახურში</option><option value="on_break">☕ პაუზა</option><option value="off_duty">○ არა სამსახ.</option></select></div></div>
+      <div class="fr"><div class="fg"><label class="fl">შემოსვლის თარიღი</label><input id="ehire" type="date" class="fi"></div><div class="fg"><label class="fl">შენიშვნა</label><input id="enote" class="fi" placeholder="..."></div></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('emp')">გაუქმება</button><button class="btn btn-accent" onclick="saveEmp()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- NOTICE -->
+<div class="overlay" id="m-notice" onclick="if(event.target===this)cm('notice')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title" id="not-mt">ახალი შეტყობინება</div><button class="modal-x" onclick="cm('notice')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="nid">
+      <div class="fg"><label class="fl">სათაური</label><input id="ntit" class="fi" placeholder="სათაური"></div>
+      <div class="fg"><label class="fl">ტექსტი</label><textarea id="nbod" class="fi" rows="4" placeholder="შეტყობინება..."></textarea></div>
+      <div class="fg"><label class="fl">პრიორიტეტი</label><select id="nprio" class="fi"><option value="low">↓ დაბალი</option><option value="normal" selected>→ ჩვეულებრივი</option><option value="high">↑ მაღალი</option><option value="urgent">⚡ სასწრაფო</option></select></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('notice')">გაუქმება</button><button class="btn btn-accent" onclick="saveNotice()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- SALARY -->
+<div class="overlay" id="m-salary" onclick="if(event.target===this)cm('salary')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">ხელფასის ჩაწერა</div><button class="modal-x" onclick="cm('salary')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">თანამშრომელი</label><select id="se" class="fi"><option value="">— აირჩიე —</option></select></div>
+      <div class="fr"><div class="fg"><label class="fl">წელი</label><input id="syr" type="number" class="fi" min="2000" max="2100"></div><div class="fg"><label class="fl">თვე</label><input id="smo" type="number" class="fi" min="1" max="12"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">ბაზა (₾)</label><input id="sbas" type="number" class="fi" placeholder="1200"></div><div class="fg"><label class="fl">ბონუსი (₾)</label><input id="sbon" type="number" class="fi" placeholder="0"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">ოვერთაიმი (₾)</label><input id="sotp" type="number" class="fi" placeholder="0" title="Overtime pay"></div><div class="fg"><label class="fl">გამოქვითვა / ჯარიმა (₾)</label><input id="sded" type="number" class="fi" placeholder="0"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">საათები (პერიოდი)</label><input id="shrs" type="number" class="fi" placeholder="168"></div><div class="fg"><label class="fl">სუფთა (ავტო)</label><input id="snetp" type="text" class="fi" readonly style="opacity:.9;font-family:'JetBrains Mono',monospace" title="Base + Bonus + Overtime − Deductions"></div></div>
+      <div class="fg"><label class="fl">შენიშვნა</label><input id="snote" class="fi" placeholder="..."></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('salary')">გაუქმება</button><button class="btn btn-accent" onclick="saveSal()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- REVIEW -->
+<div class="overlay" id="m-review" onclick="if(event.target===this)cm('review')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">შეფასება</div><button class="modal-x" onclick="cm('review')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">თანამშრომელი</label><select id="re" class="fi"><option value="">— აირჩიე —</option></select></div>
+      <div class="fr"><div class="fg"><label class="fl">წელი</label><input id="ryr" type="number" class="fi" min="2000" max="2100"></div><div class="fg"><label class="fl">კვარტალი</label><select id="rq" class="fi"><option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option></select></div></div>
+      <div class="fr3">
+        <div class="fg"><label class="fl">პუნქტ. (1-5)</label><input id="rpunc" type="number" class="fi" min="1" max="5" placeholder="5"></div>
+        <div class="fg"><label class="fl">გუნდი (1-5)</label><input id="rteam" type="number" class="fi" min="1" max="5" placeholder="5"></div>
+        <div class="fg"><label class="fl">ხარისხი (1-5)</label><input id="rqual" type="number" class="fi" min="1" max="5" placeholder="5"></div>
+      </div>
+      <div class="fr"><div class="fg"><label class="fl">დამოკ. (1-5)</label><input id="ratt" type="number" class="fi" min="1" max="5" placeholder="5"></div><div class="fg"><label class="fl">ქულა (0-10)</label><input id="rsc" type="number" class="fi" min="0" max="10" step="0.1" placeholder="8.5"></div></div>
+      <div class="fg"><label class="fl">კომენტარი</label><textarea id="rcom" class="fi" rows="3" placeholder="შეფასება..."></textarea></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('review')">გაუქმება</button><button class="btn btn-accent" onclick="saveReview()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- TRAINING -->
+<div class="overlay" id="m-training" onclick="if(event.target===this)cm('training')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">ახალი სწავლება</div><button class="modal-x" onclick="cm('training')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">სათაური</label><input id="trtit" class="fi" placeholder="სწავლების სახელი"></div>
+      <div class="fg"><label class="fl">აღწერა</label><textarea id="trdesc" class="fi" rows="3" placeholder="..."></textarea></div>
+      <div class="fr"><div class="fg"><label class="fl">ტრენერი</label><input id="trtrn" class="fi" placeholder="სახელი"></div><div class="fg"><label class="fl">ხანგრძლ. (წთ)</label><input id="trmin" type="number" class="fi" placeholder="120"></div></div>
+      <div class="fg"><label class="fl">თარიღი/დრო</label><input id="trdt" type="datetime-local" class="fi"></div>
+      <div class="fg" style="display:flex;align-items:center;gap:10px;margin-top:4px"><label class="switch"><input type="checkbox" id="trmand"><div class="slider"></div></label><span style="font-size:12.5px">სავალდებულო</span></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('training')">გაუქმება</button><button class="btn btn-accent" onclick="saveTraining()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- CHECK-IN -->
+<div class="overlay" id="m-checkin" onclick="if(event.target===this)cm('checkin')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">დასწრების ჩაწერა</div><button class="modal-x" onclick="cm('checkin')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">თანამშრომელი</label><select id="cie" class="fi"><option value="">— აირჩიე —</option></select></div>
+      <div class="fg"><label class="fl">სტატუსი</label><select id="cist" class="fi"><option value="present">✓ სამსახ.</option><option value="late">⚡ დაგვ.</option><option value="absent">✗ არ გამ.</option><option value="vacation">🌴 შვ.</option><option value="sick">😷 ავ.</option></select></div>
+      <div class="fr"><div class="fg"><label class="fl">შემოსვლა</label><input id="ciin" type="time" class="fi"></div><div class="fg"><label class="fl">გასვლა</label><input id="ciout" type="time" class="fi"></div></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('checkin')">გაუქმება</button><button class="btn btn-accent" onclick="saveCheckin()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- OVERTIME -->
+<div class="overlay" id="m-overtime" onclick="if(event.target===this)cm('overtime')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">ოვერთაიმი</div><button class="modal-x" onclick="cm('overtime')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">თანამშრომელი</label><select id="ote" class="fi"><option value="">— აირჩიე —</option></select></div>
+      <div class="fr"><div class="fg"><label class="fl">თარიღი</label><input id="otd" type="date" class="fi"></div><div class="fg"><label class="fl">საათები</label><input id="oth" type="number" class="fi" step="0.5" placeholder="2.5"></div></div>
+      <div class="fg"><label class="fl">მიზეზი</label><input id="otr" class="fi" placeholder="სამარხვო, ივენთი..."></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('overtime')">გაუქმება</button><button class="btn btn-accent" onclick="saveOvertime()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- DOCUMENT -->
+<div class="overlay" id="m-doc" onclick="if(event.target===this)cm('doc')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">დოკუმენტი</div><button class="modal-x" onclick="cm('doc')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">თანამშრომელი</label><select id="doce" class="fi"><option value="">— აირჩიე —</option></select></div>
+      <div class="fr"><div class="fg"><label class="fl">ტიპი</label><select id="doct" class="fi"><option value="contract">📋 კონტრაქტი</option><option value="id_card">🪪 პირადობა</option><option value="health_cert">🏥 ჯანმ. ცნობა</option><option value="other">📄 სხვა</option></select></div><div class="fg"><label class="fl">სათაური</label><input id="doctit" class="fi" placeholder="დოკ. სახელი"></div></div>
+      <div class="fr"><div class="fg"><label class="fl">ვადა</label><input id="docexp" type="date" class="fi"></div><div class="fg"><label class="fl">შენიშვნა</label><input id="docnote" class="fi" placeholder="..."></div></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('doc')">გაუქმება</button><button class="btn btn-accent" onclick="saveDoc()">💾 შენახვა</button></div>
+  </div>
+</div>
+
+<!-- DISCIPLINARY -->
+<div class="overlay" id="m-disc" onclick="if(event.target===this)cm('disc')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">დისციპლინური ჩანაწ.</div><button class="modal-x" onclick="cm('disc')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">თანამშრომელი</label><select id="disce" class="fi"><option value="">— აირჩიე —</option></select></div>
+      <div class="fg"><label class="fl">ტიპი</label><select id="disctyp" class="fi"><option value="verbal">🗣 ზეპ. გაფ.</option><option value="warning">⚠️ წერ. გაფ.</option><option value="written">📋 ოფ. გაფ.</option><option value="performance">📊 შესრ. შენიშვნა</option><option value="final">🔴 საბოლ. გაფ.</option><option value="termination">✗ განთ.</option></select></div>
+      <div class="fg"><label class="fl">მიზეზი</label><textarea id="discrea" class="fi" rows="3" placeholder="მიზეზი..."></textarea></div>
+      <div class="fg"><label class="fl">თარიღი</label><input id="discdt" type="date" class="fi"></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('disc')">გაუქმება</button><button class="btn btn-danger" onclick="saveDisc()">⚠️ ჩაწერა</button></div>
+  </div>
+</div>
+
+<!-- EMPLOYEE PROFILE -->
+<div class="overlay" id="m-profile" onclick="if(event.target===this)cm('profile')">
+  <div class="modal lg">
+    <div class="modal-hd"><div class="modal-title" id="prof-title">პროფილი</div><button class="modal-x" onclick="cm('profile')">✕</button></div>
+    <div class="modal-body" id="prof-body"><div class="loader"><div class="spin"></div>loading...</div></div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('profile')">დახურვა</button><button class="btn btn-accent" onclick="saveProfileIssued()">💾 ინვენტარის შენახვა</button></div>
+  </div>
+</div>
+
+<!-- EMPLOYEE REQUEST -->
+<div class="overlay" id="m-empreq" onclick="if(event.target===this)cm('empreq')">
+  <div class="modal">
+    <div class="modal-hd"><div class="modal-title">მოთხოვნა</div><button class="modal-x" onclick="cm('empreq')">✕</button></div>
+    <div class="modal-body">
+      <div class="fg"><label class="fl">ტიპი</label><select id="erqt" class="fi"><option value="day_off">🌴 დასვენების დღე</option><option value="shift_swap">🔄 სმენის გაცვლა</option><option value="vacation">შვებულება</option><option value="sick_leave">ავადმყოფობა</option><option value="other">სხვა</option></select></div>
+      <div class="fr"><div class="fg"><label class="fl">დაწყება</label><input type="date" id="erqsd" class="fi"></div><div class="fg"><label class="fl">დასასრული</label><input type="date" id="erqed" class="fi"></div></div>
+      <div class="fg"><label class="fl">აღწერა</label><textarea id="erqdesc" class="fi" rows="3" placeholder="დეტალები..."></textarea></div>
+    </div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('empreq')">გაუქმება</button><button class="btn btn-accent" onclick="saveEmpReq()">გაგზავნა</button></div>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="overlay" id="m-conf" onclick="if(event.target===this)cm('conf')">
+  <div class="modal" style="width:360px">
+    <div class="modal-hd"><div class="modal-title">⚠️ დასტური</div><button class="modal-x" onclick="cm('conf')">✕</button></div>
+    <div class="modal-body"><p id="conf-txt" style="font-size:13px;color:var(--text2);line-height:1.6"></p></div>
+    <div class="modal-ft"><button class="btn btn-ghost" onclick="cm('conf')">გაუქმება</button><button class="btn btn-danger" id="conf-ok">წაშლა</button></div>
+  </div>
+</div>
+
+<script>
+const SU='https://xcxzkelvpmynreewflrj.supabase.co';
+const SK='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhjeHprZWx2cG15bnJlZXdmbHJqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NDUwMTksImV4cCI6MjA4OTMyMTAxOX0.swcXV9m5g9Ox1t_QkLz_9suVTnBPanG0QxA1Eo4H-rY';
+const sb=supabase.createClient(SU,SK,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+let USER_ROLE=null,MY_EMPLOYEE_ID=null,AUTH_USER=null,DUTY_FILTER=null,EMP_WALLET_ROW=null,schedWeekOffsetEmp=0;
+
+async function initAuth(){
+  const{data:{session}}=await sb.auth.getSession();
+  if(!session){g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');return;}
+  AUTH_USER=session.user;
+  const{data:prof,error:profErr}=await sb.from('profiles').select('role,employee_id').eq('id',session.user.id).maybeSingle();
+  if(profErr||!prof){
+    const ae=g('auth-err');
+    let line='პროფილი ვერ ჩაიტვირთა — დარწმუნდით რომ SQL-ში ჩაწერილია profiles (იგივე UUID რაც Auth-ში).';
+    if(profErr?.message)line+=' '+profErr.message;
+    if(ae)ae.textContent=line;
+    toast('პროფილი ვერ ჩაიტვირთა — შეამოწმეთ profiles ცხრილი','error');
+    await sb.auth.signOut();g('auth-screen')?.classList.remove('hidden');return;
+  }
+  USER_ROLE=prof.role;MY_EMPLOYEE_ID=prof.employee_id;
+  g('auth-screen')?.classList.add('hidden');
+  if(USER_ROLE==='admin'){
+    g('app-admin')?.classList.remove('hidden');g('app-employee')?.classList.remove('active');
+    const ag=g('admin-global-actions');if(ag)ag.style.display='flex';
+    lDash();renderCal();refreshNoticesBell();
+  }else{
+    if(!MY_EMPLOYEE_ID){toast('ანგარიში არ არის დაკავშირებული თანამშრომელთან (employee_id)','error');await sb.auth.signOut();g('auth-screen')?.classList.remove('hidden');return;}
+    g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.add('active');
+    const ag=g('admin-global-actions');if(ag)ag.style.display='none';
+    empNav('sched',document.querySelector('.emp-nav-btn[data-empnav="sched"]'));
+    loadEmpSchedule();refreshNoticesBell(true);
+  }
+}
+async function doLogin(){
+  g('auth-err').textContent='';
+  const email=g('auth-email').value.trim(),pass=g('auth-pass').value;
+  if(!email||!pass){g('auth-err').textContent='შეიყვანეთ ელფოსტა და პაროლი';return;}
+  const{error}=await sb.auth.signInWithPassword({email,password:pass});
+  if(error){
+    let m=error.message||'შესვლა ვერ მოხერხდა';
+    if(/email not confirmed|confirm/i.test(m))m+=' — გახსენით ბმული ელფოსტაზე, ან Supabase → Authentication → Providers → Email → გამორთეთ „Confirm email“ (ტესტისთვის).';
+    g('auth-err').textContent=m;
+    return;
+  }
+  await initAuth();
+}
+async function doLogout(){await sb.auth.signOut();USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
+function empNav(tab,btn){
+  document.querySelectorAll('.emp-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.emp-nav-btn').forEach(b=>b.classList.remove('on'));
+  g('emp-page-'+tab)?.classList.add('active');if(btn)btn.classList.add('on');
+  if(tab==='sched')loadEmpSchedule();
+  if(tab==='wallet')loadEmpWallet();
+  if(tab==='clock')loadEmpClockState();
+  if(tab==='req')loadEmpRequests();
+}
+async function loadEmpSchedule(){
+  const body=g('emp-sched-body');if(!body||!MY_EMPLOYEE_ID)return;
+  body.innerHTML='<div class="loader"><div class="spin"></div></div>';
+  const today=new Date();
+  const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7)+schedWeekOffsetEmp*7);
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+  const start=days[0].toISOString().slice(0,10),end=days[6].toISOString().slice(0,10);
+  const wkel=g('emp-sched-week');if(wkel)wkel.textContent=`${fmtD(start)} – ${fmtD(end)}`;
+  const{data:S}=await sb.from('schedule').select('*,shifts(name,start_time,end_time)').eq('employee_id',MY_EMPLOYEE_ID).gte('work_date',start).lte('work_date',end);
+  const map={};(S||[]).forEach(s=>{map[s.work_date]=s.shifts;});
+  const DN=['ო','ს','ო','ხ','პ','შ','კ'];
+  body.innerHTML=`<div style="display:flex;gap:8px;margin-bottom:10px"><button class="btn btn-ghost btn-xs" onclick="schedWeekOffsetEmp--;loadEmpSchedule()">←</button><button class="btn btn-ghost btn-xs" onclick="schedWeekOffsetEmp++;loadEmpSchedule()">→</button></div>
+  <table class="tbl"><thead><tr><th>დღე</th><th>სმენა</th></tr></thead><tbody>${
+    days.map(d=>{const ds=d.toISOString().slice(0,10);const sh=map[ds];
+      const cell=sh?`<span class="shift-chip ${shiftKind(sh).cls}">${(sh.start_time||'').slice(0,5)}–${(sh.end_time||'').slice(0,5)} · ${sh.name||''}</span>`:'<span style="color:var(--text3)">—</span>';
+      return`<tr><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${DN[(d.getDay()+6)%7]} ${d.getDate()}</td><td>${cell}</td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+async function loadEmpWallet(){
+  const body=g('emp-wallet-body');if(!body||!MY_EMPLOYEE_ID)return;
+  body.innerHTML='<div class="loader"><div class="spin"></div></div>';
+  const now=new Date(),y=now.getFullYear(),m=now.getMonth()+1;
+  const{data:emp}=await sb.from('employees').select('hourly_rate,salary').eq('id',MY_EMPLOYEE_ID).maybeSingle();
+  const hr=gel(emp?.hourly_rate),monthly=gel(emp?.salary);
+  const monthStart=`${y}-${String(m).padStart(2,'0')}-01`;
+  const last=new Date(y,m,0).getDate();
+  const monthEnd=`${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+  const{data:att}=await sb.from('attendance').select('check_in,check_out').eq('employee_id',MY_EMPLOYEE_ID).gte('work_date',monthStart).lte('work_date',monthEnd);
+  let workedH=0;
+  (att||[]).forEach(r=>{if(!r.check_in||!r.check_out)return;const a=new Date(r.check_in),b=new Date(r.check_out);if(b>a)workedH+=(b-a)/3600000;});
+  const{data:sal}=await sb.from('salary_records').select('*').eq('employee_id',MY_EMPLOYEE_ID).eq('period_year',y).eq('period_month',m).maybeSingle();
+  const bonus=gel(sal?.bonus),ded=gel(sal?.deduction),ot=gel(sal?.overtime_pay);
+  const earned=hr>0?(workedH*hr):0;
+  const smartNet=earned+bonus+ot-ded;
+  const displayBase=hr>0?earned:gel(sal?.base_salary)||monthly;
+  const net=hr>0?smartNet:(gel(sal?.net_salary)||(displayBase+bonus+ot-ded));
+  EMP_WALLET_ROW={full_name:'',period_year:y,period_month:m,base_salary:displayBase,bonus,deduction:ded,overtime_pay:ot,net_salary:net,total_hours:workedH,department:'',worked_hours:workedH,hourly_rate:hr};
+  body.innerHTML=`<div style="font-size:11px;color:var(--text2);margin-bottom:8px">${y} / ${String(m).padStart(2,'0')}</div>
+    <div class="pay-row"><span>სამუშაო საათები</span><span class="pay-amount" style="color:var(--accent)">${workedH.toFixed(2)}h</span></div>
+    ${hr>0?`<div class="pay-row"><span>საათის ფასი</span><span style="font-family:'JetBrains Mono',monospace">₾${hr.toFixed(2)}</span></div>
+    <div class="pay-row"><span>ნაშოვარი (საათები × ფასი)</span><span style="font-family:'JetBrains Mono',monospace;color:var(--green)">₾${earned.toFixed(2)}</span></div>`:`<div class="pay-row"><span>ბაზა (თვე)</span><span style="font-family:'JetBrains Mono',monospace">₾${displayBase.toLocaleString()}</span></div>`}
+    <div class="pay-row"><span>ბონუსი</span><span style="color:var(--green)">+₾${bonus.toFixed(2)}</span></div>
+    <div class="pay-row"><span>ოვერთაიმი</span><span style="color:var(--accent4)">+₾${ot.toFixed(2)}</span></div>
+    <div class="pay-row"><span>გამოქვითვა / ჯარიმა</span><span style="color:var(--red)">−₾${ded.toFixed(2)}</span></div>
+    <div class="pay-row" style="border-top:1px solid var(--border);margin-top:8px;padding-top:12px"><span style="font-weight:800">სუფთა</span><span class="pay-amount">₾${net.toFixed(2)}</span></div>`;
+}
+function genEmpPaystub(){
+  if(!EMP_WALLET_ROW||!MY_EMPLOYEE_ID){toast('ჯერ ჩატვირთეთ საფულე','error');return;}
+  const JsPDF=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;if(!JsPDF){toast('PDF','error');return;}
+  const doc=new JsPDF({unit:'pt',format:'a4'}),W=doc.internal.pageSize.getWidth(),x=48,y0=56,row=EMP_WALLET_ROW,net=gel(row.net_salary);
+  doc.setFillColor(10,10,15);doc.rect(0,0,W,4,'F');doc.setFillColor(22,22,31);doc.rect(0,4,W,100,'F');
+  doc.setTextColor(200,200,220);doc.setFontSize(9);doc.text('HRCore · Employee Paystub',x,y0);
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.text('Paystub',x,y0+24);
+  doc.setFontSize(10);doc.setTextColor(180,180,200);doc.text(`პერიოდი ${row.period_year}-${String(row.period_month).padStart(2,'0')}`,x,y0+46);
+  let y=y0+78;doc.setTextColor(230,230,240);
+  doc.text(`საათები: ${gel(row.worked_hours).toFixed(2)} · Net: ₾${net.toFixed(2)}`,x,y);
+  doc.save(`my-paystub-${row.period_year}-${row.period_month}.pdf`);toast('PDF მზადაა','success');
+}
+async function loadEmpClockState(){
+  const st=g('emp-clock-status'),btn=g('emp-btn-clock');if(!st||!MY_EMPLOYEE_ID)return;
+  const today=new Date().toISOString().slice(0,10);
+  const{data:a}=await sb.from('attendance').select('*').eq('employee_id',MY_EMPLOYEE_ID).eq('work_date',today).maybeSingle();
+  if(a?.check_in&&!a?.check_out){st.textContent=`დაწყებული: ${fmtT(a.check_in)}`;btn.textContent='დასრულება';btn.dataset.mode='out';}
+  else if(a?.check_out){st.textContent=`დღეს დასრულებულია ${fmtT(a.check_out)}`;btn.textContent='დასრულებული';btn.disabled=true;btn.dataset.mode='done';}
+  else{st.textContent='არ ხართ დაწყებული';btn.textContent='სამუშაოს დაწყება';btn.disabled=false;btn.dataset.mode='in';}
+}
+async function empClockAction(){
+  if(!MY_EMPLOYEE_ID)return;
+  const btn=g('emp-btn-clock');const mode=btn?.dataset.mode;
+  if(mode==='done')return;
+  const today=new Date().toISOString().slice(0,10);
+  const apply=async(lat,lng)=>{
+    const{data:ex}=await sb.from('attendance').select('*').eq('employee_id',MY_EMPLOYEE_ID).eq('work_date',today).maybeSingle();
+    if(mode==='in'||!ex?.check_in){
+      const pay={employee_id:MY_EMPLOYEE_ID,work_date:today,status:'present',check_in:new Date().toISOString(),check_in_lat:lat??null,check_in_lng:lng??null};
+      const{error}=await sb.from('attendance').upsert(pay,{onConflict:'employee_id,work_date'});
+      if(error){toast(error.message,'error');return;}toast('Clock-in ✓');}
+    else{
+      const{error}=await sb.from('attendance').update({check_out:new Date().toISOString(),check_out_lat:lat??null,check_out_lng:lng??null}).eq('employee_id',MY_EMPLOYEE_ID).eq('work_date',today);
+      if(error){toast(error.message,'error');return;}toast('Clock-out ✓');}
+    loadEmpClockState();
+  };
+  if(!navigator.geolocation){await apply(null,null);return;}
+  navigator.geolocation.getCurrentPosition(p=>apply(p.coords.latitude,p.coords.longitude),()=>apply(null,null),{enableHighAccuracy:true,timeout:12000});
+}
+async function loadEmpRequests(){
+  const body=g('emp-req-body');if(!body||!MY_EMPLOYEE_ID)return;
+  const{data}=await sb.from('requests').select('*').eq('employee_id',MY_EMPLOYEE_ID).order('created_at',{ascending:false}).limit(30);
+  const R=data||[];
+  body.innerHTML=R.length?R.map(r=>`<div class="ritem" style="flex-direction:column;align-items:stretch"><div style="font-weight:600">${RL(r.type)}</div><div style="font-size:11px;color:var(--text2)">${r.description||''}</div><div style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3)">${fmtD(r.start_date)} ${r.status?'<span class="badge '+(r.status==='approved'?'b-green':r.status==='rejected'?'b-red':'b-yellow')+'" style="margin-left:6px">'+r.status+'</span>':''}</div></div>`).join(''):'<div class="empty">მოთხოვნები არ არის</div>';
+}
+async function saveEmpReq(){
+  if(!MY_EMPLOYEE_ID){toast('სესია','error');return;}
+  const{error}=await sb.from('requests').insert({employee_id:MY_EMPLOYEE_ID,type:g('erqt').value,description:g('erqdesc').value.trim()||null,start_date:g('erqsd').value||null,end_date:g('erqed').value||null,status:'pending'});
+  if(error){toast(error.message,'error');return;}toast('გაგზავნილია');cm('empreq');loadEmpRequests();
+}
+function setupEmpReq(){const t=new Date();g('erqsd').value=t.toISOString().slice(0,10);g('erqed').value=t.toISOString().slice(0,10);g('erqdesc').value='';}
+async function refreshNoticesBell(emp){
+  const{data:N}=await sb.from('notices').select('*').order('created_at',{ascending:false}).limit(12);
+  const list=(N||[]).map(n=>`<div class="nitem" style="border:none;padding:10px"><div class="ndot" style="background:${prioC[n.priority]}"></div><div class="nitem-body"><div class="nitem-title">${n.title}</div><div style="font-size:11px;color:var(--text2);margin-top:4px">${(n.body||'').slice(0,120)}</div></div></div>`).join('');
+  const html=list||'<div class="empty" style="padding:16px">შეტყობინებები არ არის</div>';
+  if(emp){g('emp-bell-panel').innerHTML=html;g('emp-bell-dot').style.display=(N&&N.length)?'block':'none';}
+  else{g('admin-bell-panel').innerHTML=html;g('admin-bell-dot').style.display=(N&&N.length)?'block':'none';}
+}
+function toggleBell(){g('emp-bell-panel')?.classList.toggle('open');}
+function toggleAdminBell(){g('admin-bell-panel')?.classList.toggle('open');}
+async function applyKpiPenaltyFromDisc(empId,type){
+  const pen={verbal:2,performance:3,warning:5,written:7,final:12,termination:25}[type]||4;
+  const now=new Date(),y=now.getFullYear(),mo=now.getMonth()+1;
+  const{data:rows}=await sb.from('kpi_metrics').select('id,actual').eq('employee_id',empId).eq('year',y).eq('month',mo).eq('metric_name','დასწრება').limit(1);
+  const row=rows?.[0];if(row)await sb.from('kpi_metrics').update({actual:Math.max(0,gel(row.actual)-pen)}).eq('id',row.id);
+}
+
+// UTILS
+const g=id=>document.getElementById(id);
+const AVC=['#5B4FE0','#E8437A','#0FA968','#E8890A','#4C46D5','#9B8CE8','#059669','#E03150'];
+const ac=i=>AVC[i%AVC.length];
+const ini=(f,l)=>((f||'')[0]||(l||'')[0]||'?').toUpperCase();
+const fmtT=ts=>ts?new Date(ts).toTimeString().slice(0,5):'—';
+const fmtD=d=>d?new Date(d).toLocaleDateString('ka-GE'):'—';
+const fmtDt=dt=>dt?new Date(dt).toLocaleDateString('ka-GE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—';
+const gel=n=>Number(n)||0;
+const dashPeriod=()=>{const d=new Date();return{year:d.getFullYear(),month:d.getMonth()+1};};
+const KA_MONTHS=['იანვ','თებ','მარ','აპრ','მაი','ივნ','ივლ','აგვ','სექ','ოქტ','ნოე','დეკ'];
+let AS=[],AD=[],AP=[],DF=null,CHARTS={},DQFILTER=null,PAY_ROWS=[],PROF_ID=null,schedWeekOffset=0;
+const DEPT_QUICK=[
+  {key:'kitchen',label:'Kitchen / სამზარეული',match:/kitchen|სამზარეული|კუხნი/i},
+  {key:'bar',label:'Bar / ბარი',match:/^ბარი$|bar/i},
+  {key:'foh',label:'Floor / სერვისი',match:/front|foh|floor|სალონი|სერვისი|მასპინძ/i},
+  {key:'admin',label:'ადმინისტრაცია',match:/admin|ადმინ|დირექცია|ოფისი/i}
+];
+const DUTY_QUICK=[{key:null,label:'ყველა'},{key:'active',label:'Active'},{key:'on_break',label:'On break'},{key:'off_duty',label:'Off-duty'}];
+function dutyBadge(d){
+  const x=d||'off_duty';
+  return({active:'<span class="dutyBadge duty-active">● Active</span>',on_break:'<span class="dutyBadge duty-break">☕ Break</span>',off_duty:'<span class="dutyBadge duty-off">○ Off-duty</span>'}[x]||`<span class="dutyBadge duty-off">${x}</span>`);
+}
+function renderDutyChips(){const el=g('duty-quick');if(!el)return;el.innerHTML=DUTY_QUICK.map((r,i)=>`<button type="button" class="duty-chip ${DUTY_FILTER===r.key?'on':''}" onclick="setDutyFilterIx(${i})">${r.label}</button>`).join('');}
+function setDutyFilterIx(i){DUTY_FILTER=DUTY_QUICK[i].key;renderDutyChips();filterStaff();}
+const ISSUE_DEF=[{key:'uniform',label:'უნიფორმა'},{key:'badge',label:'ბეიჯი'},{key:'locker_key',label:'საკუჭრის გასაღები'},{key:'apron',label:'გარდინი / ხელთაფარი'}];
+
+function toast(m,t='success'){
+  const el=document.createElement('div');
+  el.className=`toast t-${t}`;el.textContent=m;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),3500);
+}
+
+function normStatus(s){
+  if(s==='vacation'||s==='sick')return'on_leave';
+  return s||'active';
+}
+const sBadge=s=>{
+  const x=normStatus(s);
+  return({probation:'<span class="badge b-yellow">⏳ probation</span>',active:'<span class="badge b-green">● active</span>',on_leave:'<span class="badge b-blue">🏖 on leave</span>',terminated:'<span class="badge b-red">✗ terminated</span>',
+    vacation:'<span class="badge b-blue">🏖 on leave</span>',sick:'<span class="badge b-blue">🏖 on leave</span>'}[x]||`<span class="badge b-gray">${s||'—'}</span>`);
+};
+const aBadge=s=>({present:'<span class="badge b-green">● present</span>',late:'<span class="badge b-yellow">⚡ late</span>',absent:'<span class="badge b-red">✗ absent</span>',vacation:'<span class="badge b-gray">○ vacation</span>',sick:'<span class="badge b-red">● sick</span>'}[s]||`<span class="badge b-gray">${s}</span>`);
+const prioC={low:'var(--text2)',normal:'var(--accent)',high:'var(--yellow)',urgent:'var(--red)'};
+const RL=t=>({vacation:'🌴 შვებ.',shift_change:'🔄 სმენა',shift_swap:'🔁 სმენის გაცვლა',day_off:'📅 დასვენება',sick_leave:'📋 ავ.',other:'📌 სხვა'}[t]||t);
+const dtL=t=>({verbal:'🗣',warning:'⚠️',written:'📋',performance:'📊',final:'🔴',termination:'✗'}[t]||'?');
+const docL=t=>({contract:'📋',id_card:'🪪',health_cert:'🏥',other:'📄'}[t]||'📄');
+const scoreColor=v=>{if(v>=80)return'var(--green)';if(v>=60)return'var(--yellow)';return'var(--red)';};
+
+// NAV
+function go(id,el){
+  closeSidebar();
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  g('page-'+id).classList.add('active');
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  if(el)el.classList.add('active');
+  const m={staff:lStaff,attendance:lAtt,payroll:lPayroll,requests:lReqs,notices:lNot,analytics:lAnalytics,performance:lPerf,training:lTrain,schedule:lSched,overtime:lOT,documents:lDocs,disciplinary:lDisc,settings:lSettings};
+  (m[id]||lDash)();
+}
+
+// MODAL
+function om(n,d=null){
+  const setups={emp:()=>setupEmp(d),notice:()=>setupNotice(d),salary:()=>setupSalary(),review:()=>setupReview(),training:()=>setupTraining(),checkin:()=>setupCheckin(),overtime:()=>setupOT(),doc:()=>setupDoc(),disc:()=>setupDisc(),empreq:()=>setupEmpReq()};
+  if(setups[n])setups[n]();
+  g('m-'+n).classList.add('open');
+}
+function cm(n){const el=g('m-'+n);if(el)el.classList.remove('open');}
+function toggleSidebar(){const s=g('sidebar'),b=g('sb-bg');if(s)s.classList.toggle('open');if(b)b.classList.toggle('open');}
+function closeSidebar(){g('sidebar')?.classList.remove('open');g('sb-bg')?.classList.remove('open');}
+
+// ========== DASHBOARD ==========
+async function lDash(){
+  const dp=dashPeriod();
+  const[eR,aR,sR,rR,nR,kR]=await Promise.all([
+    sb.from('employee_details').select('*'),
+    sb.from('attendance').select('*').eq('work_date',new Date().toISOString().slice(0,10)),
+    sb.from('salary_records').select('*').eq('period_year',dp.year).eq('period_month',dp.month),
+    sb.from('pending_requests').select('*'),
+    sb.from('notices').select('*').order('created_at',{ascending:false}).limit(4),
+    sb.from('kpi_metrics').select('*,employees(first_name,last_name)').eq('year',dp.year).eq('month',dp.month).eq('metric_name','დასწრება').limit(7)
+  ]);
+  const E=eR.data||[],A=aR.data||[],S=sR.data||[],R=rR.data||[],N=nR.data||[],K=kR.data||[];
+
+  g('ds1').textContent=E.length;g('ds1s').textContent=E.filter(e=>['active','probation'].includes(normStatus(e.status))).length+' active / probation';
+  g('ds2').textContent=A.filter(a=>['present','late'].includes(a.status)).length;
+  g('ds3').textContent=R.length;
+  g('ds4').textContent='₾'+S.reduce((s,r)=>s+gel(r.net_salary),0).toLocaleString();
+  const ds4s=g('ds4-sub');if(ds4s)ds4s.textContent=`${KA_MONTHS[dp.month-1]} ${dp.year}`;
+  const rb=g('req-nb');if(R.length){rb.style.display='inline';rb.textContent=R.length;g('req-nb2').style.display='inline';g('req-nb2').textContent=R.length;}else{rb.style.display='none';g('req-nb2').style.display='none';}
+  g('req-cnt').textContent=R.length?R.length+' pending':'';
+
+  // Staff
+  g('d-staff').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Status</th><th>Dept</th><th>Salary</th><th>Actions</th></tr></thead><tbody>${
+    E.slice(0,7).map((e,i)=>`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(e.first_name,e.last_name)}</div><div><div class="emp-n">${e.first_name} ${e.last_name}</div><div class="emp-r">${e.position||'—'}</div></div></div></td><td>${sBadge(e.status)}</td><td><span class="badge b-purple">${e.department||'—'}</span></td><td style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700">₾${gel(e.salary).toLocaleString()}</td><td><div style="display:flex;gap:4px"><button class="icon-btn" onclick="editEmp('${e.id}')">✏</button><button class="icon-btn del" onclick="delEmp('${e.id}','${e.first_name} ${e.last_name}')">✕</button></div></td></tr>`).join('')
+  }</tbody></table>`;
+
+  // Requests
+  g('d-reqs').innerHTML=R.length===0?'<div class="empty">✓ No pending requests</div>':
+    R.slice(0,3).map(r=>`<div class="ritem"><div style="flex:1"><div style="font-size:12px;font-weight:600">${r.full_name}</div><div style="font-size:10px;color:var(--text2);font-family:'JetBrains Mono',monospace">${{vacation:'🌴',shift_change:'🔄',shift_swap:'🔁',day_off:'📅',sick_leave:'📋',other:'📌'}[r.type]||'📝'} ${RL(r.type)}</div></div><div style="display:flex;gap:4px"><button class="btn btn-success btn-xs" onclick="uReq('${r.id}','approved')">✓</button><button class="btn btn-danger btn-xs" onclick="uReq('${r.id}','rejected')">✗</button></div></div>`).join('');
+
+  // Notices
+  g('d-notices').innerHTML=N.map(n=>`<div class="nitem"><div class="ndot" style="background:${prioC[n.priority]}"></div><div class="nitem-body"><div class="nitem-title">${n.title}</div><div class="nitem-time">${new Date(n.created_at).toLocaleDateString('ka-GE')}</div></div></div>`).join('')||'<div class="empty">No notices</div>';
+
+  // Attendance bars
+  const{data:mA}=await sb.from('attendance').select('employee_id,status');
+  const ec={};(mA||[]).forEach(a=>{if(!ec[a.employee_id])ec[a.employee_id]={t:0,p:0};ec[a.employee_id].t++;if(['present','late'].includes(a.status))ec[a.employee_id].p++;});
+  g('d-att').innerHTML=E.slice(0,7).map(e=>{const c=ec[e.id];const p=c&&c.t>0?Math.round(c.p/c.t*100):null;return`<div class="score-bar"><div class="score-label">${e.first_name} ${(e.last_name||'')[0]}.</div><div class="score-track"><div class="score-fill" style="width:${p||0}%;background:${scoreColor(p||0)}"></div></div><div class="score-val">${p!==null?p+'%':'—'}</div></div>`;}).join('');
+
+  // KPI rings
+  g('d-kpi').innerHTML=K.map(k=>{
+    const pct=k.target>0?Math.min(100,Math.round(gel(k.actual)/gel(k.target)*100)):0;
+    const r=14,circ=2*Math.PI*r,dash=circ*(1-pct/100);
+    const c=scoreColor(pct);
+    return`<div class="kpi-item"><div class="kpi-ring"><svg viewBox="0 0 36 36" width="36" height="36"><circle class="kpi-ring-bg" cx="18" cy="18" r="${r}"/><circle class="kpi-ring-fill" cx="18" cy="18" r="${r}" stroke="${c}" stroke-dasharray="${circ}" stroke-dashoffset="${dash}"/></svg><div class="kpi-pct" style="color:${c}">${pct}%</div></div><div class="kpi-label"><div class="kpi-name">${k.employees?.first_name||'?'} ${(k.employees?.last_name||'')[0]}.</div><div class="kpi-sub">${k.metric_name}</div></div><div class="kpi-val" style="color:${c}">${gel(k.actual)}/${gel(k.target)}</div></div>`;
+  }).join('')||'<div class="empty">No KPI data</div>';
+
+  // Calendar
+  renderCal();
+}
+
+// ========== CALENDAR ==========
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth();
+function renderCal(){
+  const today=new Date();
+  const first=new Date(calYear,calMonth,1);
+  const last=new Date(calYear,calMonth+1,0);
+  const startDay=(first.getDay()+6)%7;
+  const mn=['იანვ','თებ','მარ','აპრ','მაი','ივნ','ივლ','აგვ','სექ','ოქტ','ნოე','დეკ'];
+  let html=`<div class="cal-nav"><button class="cal-nav-btn" onclick="calNav(-1)">‹</button><div class="cal-month">${mn[calMonth]} ${calYear}</div><button class="cal-nav-btn" onclick="calNav(1)">›</button></div>
+  <div class="cal-grid">
+    ${['ო','ს','ო','ხ','პ','შ','კ'].map(d=>`<div class="cal-dn">${d}</div>`).join('')}
+    ${Array.from({length:startDay},()=>'<div></div>').join('')}
+    ${Array.from({length:last.getDate()},(_,i)=>{
+      const d=i+1,isT=d===today.getDate()&&calMonth===today.getMonth()&&calYear===today.getFullYear();
+      const hasSched=d%3===0;
+      return`<div class="cal-d ${isT?'today':''} ${hasSched?'has':''}">${d}</div>`;
+    }).join('')}
+  </div>`;
+  g('d-cal').innerHTML=html;
+}
+function calNav(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}renderCal();}
+
+// ========== ANALYTICS ==========
+async function lAnalytics(){
+  const dp=dashPeriod();
+  const[eR,sR,aR,pR,oR]=await Promise.all([
+    sb.from('employee_details').select('department,salary,status'),
+    sb.from('salary_records').select('net_salary').eq('period_year',dp.year).eq('period_month',dp.month),
+    sb.from('attendance').select('status'),
+    sb.from('performance_reviews').select('score,employees(first_name,last_name)').eq('period_year',dp.year),
+    sb.from('operational_daily').select('record_date,revenue,labor_cost').order('record_date',{ascending:true}).limit(90)
+  ]);
+  const E=eR.data||[],A=aR.data||[],P=pR.data||[],O=oR.data||[];
+
+  // Dept salary chart
+  const deptMap={};E.forEach(e=>{if(!deptMap[e.department])deptMap[e.department]=0;deptMap[e.department]+=gel(e.salary);});
+  mkChart('ch-dept','doughnut',{labels:Object.keys(deptMap),datasets:[{data:Object.values(deptMap),backgroundColor:AVC,borderWidth:0}]});
+
+  const statMap={probation:0,active:0,on_leave:0,terminated:0};
+  E.forEach(e=>{const k=normStatus(e.status);if(k==='probation')statMap.probation++;else if(k==='active')statMap.active++;else if(k==='on_leave'||k==='vacation'||k==='sick')statMap.on_leave++;else if(k==='terminated')statMap.terminated++;});
+  mkChart('ch-status','doughnut',{labels:['Probation','Active','On leave','Terminated'],datasets:[{data:[statMap.probation,statMap.active,statMap.on_leave,statMap.terminated],backgroundColor:['#FFA502','#43E97B','#5352ED','#FF4757'],borderWidth:0}]});
+
+  // Attendance bar
+  const attMap={present:0,late:0,absent:0,vacation:0,sick:0};A.forEach(a=>attMap[a.status]=(attMap[a.status]||0)+1);
+  mkChart('ch-att','bar',{labels:Object.keys(attMap),datasets:[{data:Object.values(attMap),backgroundColor:AVC,borderRadius:6,borderWidth:0}]},{scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8888AA'}},x:{grid:{display:false},ticks:{color:'#8888AA'}}}});
+
+  // Performance
+  const names=P.map(p=>`${p.employees?.first_name||'?'} ${(p.employees?.last_name||'')[0]||''}.`);
+  const scores=P.map(p=>gel(p.score));
+  mkChart('ch-perf','bar',{labels:names,datasets:[{data:scores,backgroundColor:scores.map(s=>s>=8?'#43E97B':s>=6?'#FFA502':'#FF4757'),borderRadius:6,borderWidth:0}]},{scales:{y:{beginAtZero:true,max:10,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8888AA'}},x:{grid:{display:false},ticks:{color:'#8888AA',font:{size:10}}}});
+
+  // Labor vs revenue (trend)
+  let labels=[],revData=[],labData=[];
+  if(O.length){
+    labels=O.map(r=>String(r.record_date).slice(5,10));revData=O.map(r=>gel(r.revenue));labData=O.map(r=>gel(r.labor_cost));
+  }else{
+    for(let i=29;i>=0;i--){const d=new Date();d.setDate(d.getDate()-i);labels.push(d.toISOString().slice(5,10));revData.push(0);labData.push(0);}
+  }
+  mkChart('ch-labor-rev','line',{
+    labels,
+    datasets:[
+      {label:'Revenue ₾',data:revData,borderColor:'#43E97B',backgroundColor:'rgba(67,233,123,0.1)',fill:true,tension:0.35,pointRadius:2},
+      {label:'Labor cost ₾',data:labData,borderColor:'#FF6584',backgroundColor:'rgba(255,101,132,0.08)',fill:true,tension:0.35,pointRadius:2}
+    ]
+  },{scales:{y:{beginAtZero:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#8888AA'}},x:{grid:{color:'rgba(255,255,255,0.02)'},ticks:{color:'#8888AA',maxRotation:45}}}});
+}
+
+function mkChart(id,type,data,extraOpts={}){
+  if(CHARTS[id])CHARTS[id].destroy();
+  const ctx=g(id).getContext('2d');
+  CHARTS[id]=new Chart(ctx,{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#8888AA',font:{size:10,family:'JetBrains Mono'}}}},animation:{duration:600},...extraOpts}});
+}
+
+// ========== STAFF ==========
+async function lStaff(){
+  g('sw').innerHTML='<div class="loader"><div class="spin"></div>loading...</div>';
+  const{data:d}=await sb.from('departments').select('*').order('name');AD=d||[];
+  const{data:e}=await sb.from('employee_details').select('*').order('last_name');AS=e||[];
+  g('stitle').textContent=`${AS.length} employees`;
+  g('dbtns').innerHTML=`<button class="btn btn-ghost btn-sm" onclick="sdf(null)">ყველა</button>`+AD.map(d=>`<button class="btn btn-ghost btn-sm" onclick="sdf('${d.id}')">${d.name}</button>`).join('');
+  const dq=g('dept-quick');
+  if(dq)dq.innerHTML=`<button type="button" class="dept-chip" onclick="setDeptQuick(null)">ყველა</button>`+DEPT_QUICK.map(r=>`<button type="button" class="dept-chip" onclick="setDeptQuick('${r.key}')">${r.label}</button>`).join('');
+  renderDutyChips();
+  syncStaffFiltersUI();
+  filterStaff();
+}
+function syncStaffFiltersUI(){
+  g('dbtns')?.querySelectorAll('button').forEach((b,i)=>{const on=i===0?!DF&&!DQFILTER:AD[i-1]?.id===DF&&!DQFILTER;b.className='btn btn-sm '+(on?'btn-accent':'btn-ghost');});
+  g('dept-quick')?.querySelectorAll('.dept-chip').forEach((c,idx)=>{const on=idx===0?!DQFILTER:DEPT_QUICK[idx-1]?.key===DQFILTER;c.classList.toggle('on',!!on);});
+}
+function setDeptQuick(key){DQFILTER=key||null;DF=null;syncStaffFiltersUI();filterStaff();}
+function sdf(id){DF=id||null;DQFILTER=null;syncStaffFiltersUI();filterStaff();}
+function filterStaff(){const q=(g('sq').value||'').toLowerCase();let f=AS;
+  if(DQFILTER){const rule=DEPT_QUICK.find(x=>x.key===DQFILTER);if(rule)f=f.filter(e=>rule.match.test(String(e.department||'')));}
+  else if(DF)f=f.filter(e=>AD.find(d=>d.name===e.department)?.id===DF);
+  if(DUTY_FILTER!=null)f=f.filter(e=>(e.duty_status||'off_duty')===DUTY_FILTER);
+  if(q)f=f.filter(e=>`${e.first_name} ${e.last_name} ${e.position} ${e.department} ${e.email||''}`.toLowerCase().includes(q));
+  rStaff(f);
+}
+function healthCertBadge(exp){
+  if(!exp)return'<span class="badge b-gray">—</span>';
+  const d=new Date(exp);const now=new Date();const days=Math.ceil((d-now)/864e5);
+  if(days<0)return'<span class="badge b-red health-warn-pulse">ვადაგასული</span>';
+  if(days<=7)return'<span class="badge b-red health-warn-pulse">'+days+' დღე (კრიტ.)</span>';
+  if(days<=30)return'<span class="badge b-yellow">'+days+' დღე</span>';
+  return'<span class="badge b-green">OK</span>';
+}
+function rStaff(data){
+  if(!data.length){g('sw').innerHTML='<div class="empty">No employees found</div>';return;}
+  g('sw').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Position</th><th>Dept</th><th>HR</th><th>Duty</th><th>ჯანმ. ცნობა</th><th>Salary</th><th>Hire</th><th>Actions</th></tr></thead><tbody>${
+    data.map((e,i)=>`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(e.first_name,e.last_name)}</div><div><div class="emp-n">${e.first_name} ${e.last_name}</div><div class="emp-r">${e.email||''}</div></div></div></td><td style="font-size:11.5px">${e.position||'—'}</td><td><span class="badge b-purple">${e.department||'—'}</span></td><td>${sBadge(e.status)}</td><td>${dutyBadge(e.duty_status)}</td><td>${healthCertBadge(e.health_certificate_expiry)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--green);font-weight:700">₾${gel(e.salary).toLocaleString()}</td><td style="font-size:11px;color:var(--text2);font-family:'JetBrains Mono',monospace">${fmtD(e.hire_date)}</td><td><div style="display:flex;gap:4px;flex-wrap:wrap"><button class="icon-btn" title="პროფილი" onclick="openProfile('${e.id}')">👤</button><button class="icon-btn" onclick="editEmp('${e.id}')">✏</button><button class="icon-btn del" onclick="delEmp('${e.id}','${e.first_name} ${e.last_name}')">✕</button></div></td></tr>`).join('')
+  }</tbody></table>`;
+}
+
+// EMP CRUD
+async function setupEmp(id=null){
+  g('eid').value=id||'';g('emp-mt').textContent=id?'Employee Edit':'New Employee';
+  if(!AD.length){const{data}=await sb.from('departments').select('*').order('name');AD=data||[];}
+  g('edept').innerHTML='<option value="">— select —</option>'+AD.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
+  if(id){
+    const{data:e}=await sb.from('employees').select('*').eq('id',id).single();
+    if(e){
+      g('efn').value=e.first_name||'';g('eln').value=e.last_name||'';g('eem').value=e.email||'';g('eph').value=e.phone||'';g('edept').value=e.department_id||'';g('esal').value=e.salary||'';
+      const st=e.status||'active';g('estat').value=['probation','active','on_leave','terminated'].includes(st)?st:(st==='vacation'||st==='sick'?'on_leave':'active');
+      g('ehire').value=(e.hire_date||'').slice(0,10);g('enid').value=e.national_id||'';g('ehealth').value=(e.health_certificate_expiry||'').slice(0,10);
+      g('ectrstart').value=(e.contract_start_date||'').slice(0,10);g('ectrend').value=(e.contract_end_date||'').slice(0,10);
+      g('ehour').value=e.hourly_rate!=null?e.hourly_rate:'';g('eduty').value=e.duty_status||'off_duty';
+      await lpos();g('epos').value=e.position_id||'';
+    }
+  }else{['efn','eln','eem','eph','esal','ehire','enote','enid','ehealth','ectrstart','ectrend','ehour'].forEach(i=>g(i).value='');g('estat').value='probation';g('eduty').value='off_duty';g('epos').innerHTML='<option value="">— select —</option>';}
+}
+async function lpos(){const did=g('edept').value;g('epos').innerHTML='<option value="">loading...</option>';let q=sb.from('positions').select('*').order('name');if(did)q=q.eq('department_id',did);const{data}=await q;AP=data||[];g('epos').innerHTML='<option value="">— select —</option>'+AP.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');}
+async function saveEmp(){
+  const id=g('eid').value,fn=g('efn').value.trim(),ln=g('eln').value.trim();
+  if(!fn||!ln){toast('შეიყვანეთ სახელი და გვარი','error');return;}
+  if(!g('edept').value){toast('აირჩიეთ განყოფილება','error');return;}
+  const em=g('eem').value.trim();
+  if(em){
+    let q=sb.from('employees').select('id').eq('email',em);
+    if(id)q=q.neq('id',id);
+    const{data:dup}=await q.limit(1).maybeSingle();
+    if(dup){toast('ეს ელფოსტა უკვე გამოყენებულია','error');return;}
+  }
+  const pay={
+    first_name:fn,last_name:ln,email:em||null,phone:g('eph').value.trim()||null,
+    department_id:g('edept').value||null,position_id:g('epos').value||null,salary:parseFloat(g('esal').value)||0,
+    status:g('estat').value,hire_date:g('ehire').value||null,
+    national_id:g('enid').value.trim()||null,health_certificate_expiry:g('ehealth').value||null,
+    contract_start_date:g('ectrstart').value||null,contract_end_date:g('ectrend').value||null,
+    hourly_rate:parseFloat(g('ehour').value)||0,duty_status:g('eduty').value||'off_duty'
+  };
+  const{error}=id?await sb.from('employees').update(pay).eq('id',id):await sb.from('employees').insert(pay);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast(id?'✓ Updated!':'✓ Added!');cm('emp');
+  await lDash();if(g('page-staff').classList.contains('active'))await lStaff();
+}
+function editEmp(id){om('emp',id);}
+function delEmp(id,name){
+  g('conf-txt').textContent=`Delete "${name}"? This cannot be undone.`;
+  g('conf-ok').onclick=async()=>{await sb.from('employees').delete().eq('id',id);toast('Deleted');cm('conf');await lStaff();await lDash();};
+  g('m-conf').classList.add('open');
+}
+
+// ========== PERFORMANCE ==========
+async function lPerf(){
+  const dp=dashPeriod(),y=dp.year,q=Math.floor((dp.month-1)/3)+1;
+  const{data:R}=await sb.from('performance_reviews').select('*,employees(first_name,last_name,position_id)').eq('period_year',y).order('score',{ascending:false});
+  const rows=R||[];
+  const pp=g('perf-pill');if(pp)pp.textContent=`Q${q} ${y}`;
+  g('perf-wrap').innerHTML=rows.length===0?'<div class="card"><div class="empty">No reviews yet</div></div>':
+    `<div class="card"><div class="card-header"><div class="card-title"><div class="dot" style="background:var(--accent)"></div>Q${q} ${y} · ${rows.length} reviews</div></div>
+    <table class="tbl"><thead><tr><th>Employee</th><th>Score</th><th>Punct.</th><th>Teamwork</th><th>Quality</th><th>Attitude</th><th>Comment</th></tr></thead><tbody>
+    ${rows.map((r,i)=>{
+      const stars=n=>`<div class="stars">${[1,2,3,4,5].map(s=>`<span class="star ${s<=n?'on':''}">${s<=n?'★':'☆'}</span>`).join('')}</div>`;
+      const sc=gel(r.score);const c=sc>=8?'var(--green)':sc>=6?'var(--yellow)':'var(--red)';
+      return`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${ini(r.employees?.first_name,r.employees?.last_name)}</div><div class="emp-n">${r.employees?.first_name||'?'} ${r.employees?.last_name||''}</div></div></td>
+        <td><span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:${c}">${sc}</span></td>
+        <td>${stars(r.punctuality)}</td><td>${stars(r.teamwork)}</td><td>${stars(r.quality)}</td><td>${stars(r.attitude)}</td>
+        <td style="font-size:11px;color:var(--text2);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.comment||'—'}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+async function setupReview(){
+  const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+  g('re').innerHTML='<option value="">— select —</option>'+(E||[]).map(e=>`<option value="${e.id}">${e.first_name} ${e.last_name}</option>`).join('');
+  ['rpunc','rteam','rqual','ratt','rsc','rcom'].forEach(i=>g(i).value='');
+}
+async function saveReview(){
+  const emp=g('re').value;if(!emp){toast('აირჩიეთ თანამშრომელი','error');return;}
+  const py=parseInt(g('ryr').value,10),pq=parseInt(g('rq').value,10);
+  const{data:ex}=await sb.from('performance_reviews').select('id').eq('employee_id',emp).eq('period_year',py).eq('period_quarter',pq).limit(1).maybeSingle();
+  if(ex){toast('ამ კვარტალის შეფასება უკვე არსებობს','error');return;}
+  const{error}=await sb.from('performance_reviews').insert({employee_id:emp,period_year:py,period_quarter:pq,score:parseFloat(g('rsc').value)||null,punctuality:parseInt(g('rpunc').value)||null,teamwork:parseInt(g('rteam').value)||null,quality:parseInt(g('rqual').value)||null,attitude:parseInt(g('ratt').value)||null,comment:g('rcom').value.trim()||null});
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('✓ Review saved!');cm('review');await lPerf();
+}
+
+// ========== TRAINING ==========
+async function lTrain(){
+  const{data:T}=await sb.from('trainings').select('*,training_participants(id,attended)').order('scheduled_at');
+  const rows=T||[];
+  g('train-wrap').innerHTML=`<div style="display:flex;flex-direction:column;gap:12px">${rows.map(t=>{
+    const total=t.training_participants?.length||0;
+    const attended=t.training_participants?.filter(p=>p.attended).length||0;
+    const d=t.scheduled_at?new Date(t.scheduled_at):null;
+    const isPast=d&&d<new Date();
+    return`<div class="tr-card">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div><div class="tr-title">${t.title}${t.mandatory?'<span class="badge b-red" style="margin-left:8px;font-size:9px">mandatory</span>':''}</div>
+        <div class="tr-meta">${t.trainer?'Trainer: '+t.trainer+' · ':''}${t.duration_minutes?t.duration_minutes+'min':''}${d?' · '+fmtDt(t.scheduled_at):''}</div>
+        ${t.description?`<div style="font-size:12px;color:var(--text2);margin-top:6px">${t.description}</div>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="badge ${isPast?'b-gray':'b-green'}">${isPast?'completed':'upcoming'}</span>
+          ${total>0?`<div style="font-size:10px;color:var(--text2);margin-top:4px;font-family:'JetBrains Mono',monospace">${attended}/${total} attended</div>`:''}
+        </div>
+      </div>
+    </div>`;}).join('')||'<div class="empty">No trainings scheduled</div>'}</div>`;
+}
+async function setupTraining(){['trtit','trdesc','trtrn','trdt'].forEach(i=>g(i).value='');g('trmin').value='';g('trmand').checked=false;}
+async function saveTraining(){
+  const title=g('trtit').value.trim();if(!title){toast('Add title','error');return;}
+  const{error}=await sb.from('trainings').insert({title,description:g('trdesc').value.trim()||null,trainer:g('trtrn').value.trim()||null,duration_minutes:parseInt(g('trmin').value)||null,scheduled_at:g('trdt').value||null,mandatory:g('trmand').checked});
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('✓ Training added!');cm('training');await lTrain();
+}
+
+// ========== SCHEDULE ==========
+function shiftKind(sh){
+  if(!sh)return{cls:'dayoff',label:'დასვენება',title:'Day off'};
+  const nm=String(sh.name||'').toLowerCase();
+  if(/დასვენ|day\s*off|off|შვებ|vacation|დასვენება|თავისუფალი/i.test(sh.name||''))return{cls:'dayoff',label:sh.name||'დასვენება',title:'Day off'};
+  if(/ღამ|night|late\s*shift|evening|საღამო/i.test(nm))return{cls:'night',label:`${(sh.start_time||'').slice(0,5)}–${(sh.end_time||'').slice(0,5)}`,title:sh.name||'Night'};
+  if(/დილ|morning|breakfast|საუზმო/i.test(nm))return{cls:'morning',label:`${(sh.start_time||'').slice(0,5)}–${(sh.end_time||'').slice(0,5)}`,title:sh.name||'Morning'};
+  const h=parseInt(String(sh.start_time||'00:00').slice(0,2),10)||0;
+  if(h>=17||h<5)return{cls:'night',label:`${(sh.start_time||'').slice(0,5)}–${(sh.end_time||'').slice(0,5)}`,title:sh.name||'Night'};
+  if(h>=5&&h<15)return{cls:'morning',label:`${(sh.start_time||'').slice(0,5)}–${(sh.end_time||'').slice(0,5)}`,title:sh.name||'Morning'};
+  return{cls:'default',label:`${(sh.start_time||'').slice(0,5)}–${(sh.end_time||'').slice(0,5)}`,title:sh.name||'Shift'};
+}
+function schedWeekNav(dir){schedWeekOffset+=dir;lSched();}
+async function lSched(){
+  const today=new Date();
+  const mon=new Date(today);
+  mon.setDate(today.getDate()-((today.getDay()+6)%7)+schedWeekOffset*7);
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+  const start=days[0].toISOString().slice(0,10),end=days[6].toISOString().slice(0,10);
+  g('sched-week').textContent=`${days[0].toLocaleDateString('ka-GE')} – ${days[6].toLocaleDateString('ka-GE')}`;
+  const{data:S}=await sb.from('schedule').select('*,employees(first_name,last_name),shifts(name,start_time,end_time)').gte('work_date',start).lte('work_date',end);
+  const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+  const sched=S||[];const emps=E||[];
+  const DN=['ო','ს','ო','ხ','პ','შ','კ'];
+  const empSched={};emps.forEach(e=>empSched[e.id]={});
+  sched.forEach(s=>{if(!empSched[s.employee_id])empSched[s.employee_id]={};empSched[s.employee_id][s.work_date]=s.shifts;});
+  g('sched-wrap').innerHTML=`<table class="tbl"><thead><tr><th>თანამშრომელი</th>${days.map((d,i)=>`<th>${DN[i]} ${d.getDate()}</th>`).join('')}</tr></thead><tbody>${
+    emps.slice(0,24).map((e,ei)=>`<tr><td><div class="tbl-name"><div class="emp-av av${ei%8}" style="font-size:10px">${ini(e.first_name,e.last_name)}</div><div class="emp-n" style="font-size:12px">${e.first_name} ${e.last_name}</div></div></td>${
+      days.map(d=>{const ds=d.toISOString().slice(0,10);const sh=empSched[e.id]?.[ds];
+        if(!sh)return'<td><span style="color:var(--text3);font-size:11px">—</span></td>';
+        const k=shiftKind(sh);
+        return`<td><span class="shift-chip ${k.cls}" title="${(k.title||'').replace(/"/g,'&quot;')}">${k.label}</span></td>`;
+      }).join('')
+    }</tr>`).join('')
+  }</tbody></table>`;
+}
+
+function updateNetPreview(){
+  if(!g('snetp'))return;
+  const n=gel(g('sbas').value)+gel(g('sbon').value)+gel(g('sotp').value)-gel(g('sded').value);
+  g('snetp').value='₾'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+async function calcAttendanceHours(){
+  const from=g('ah-from')?.value,to=g('ah-to')?.value;
+  if(!from||!to){toast('აირჩიეთ პერიოდი','error');return;}
+  if(from>to){toast('არასწორი პერიოდი','error');return;}
+  let q=sb.from('attendance').select('employee_id,check_in,check_out,work_date').gte('work_date',from).lte('work_date',to);
+  const emp=g('ah-emp')?.value;
+  if(emp)q=q.eq('employee_id',emp);
+  const{data:rows,error}=await q;
+  if(error){toast(error.message,'error');return;}
+  let totalMs=0;
+  (rows||[]).forEach(r=>{if(!r.check_in||!r.check_out)return;const a=new Date(r.check_in),b=new Date(r.check_out);if(b>a)totalMs+=b-a;});
+  const h=(totalMs/3600000).toFixed(2);
+  let label='ყველა ჩანაწერი';
+  if(emp){const ex=(AS||[]).find(x=>x.id===emp);label=ex?`${ex.first_name} ${ex.last_name}`:'თანამშრომელი';}
+  if(g('ah-out'))g('ah-out').textContent=`${label}: ${h} სთ · ${(rows||[]).length} ჩანაწერი`;
+}
+
+// ========== ATTENDANCE ==========
+async function lAtt(){
+  const today=new Date(),t0=new Date(today.getFullYear(),today.getMonth(),1);
+  if(g('ah-from'))g('ah-from').value=t0.toISOString().slice(0,10);
+  if(g('ah-to'))g('ah-to').value=today.toISOString().slice(0,10);
+  if(g('ah-emp')){
+    const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+    g('ah-emp').innerHTML='<option value="">— ყველა (ჯამი) —</option>'+(E||[]).map(e=>`<option value="${e.id}">${e.first_name} ${e.last_name}</option>`).join('');
+  }
+  const todayStr=today.toISOString().slice(0,10);
+  g('att-today').textContent=new Date().toLocaleDateString('ka-GE',{weekday:'long',day:'numeric',month:'long'});
+  const{data}=await sb.from('today_attendance').select('*');
+  const rows=data||[];
+  if(!rows.length){g('att-wrap').innerHTML='<div class="empty">No attendance records today</div>';return;}
+  g('att-wrap').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Position</th><th>Status</th><th>Check-in</th><th>Check-out</th><th>Hours</th></tr></thead><tbody>${
+    rows.map((r,i)=>{
+      const ci=r.check_in?new Date(r.check_in):null,co=r.check_out?new Date(r.check_out):null;
+      const hrs=ci&&co?((co-ci)/3600000).toFixed(1):ci?((new Date()-ci)/3600000).toFixed(1):null;
+      return`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}">${(r.full_name||'?')[0]}</div><div class="emp-n">${r.full_name}</div></div></td><td><span class="badge b-purple" style="font-size:10px">${r.position||'—'}</span></td><td>${aBadge(r.status)}</td><td style="font-family:'JetBrains Mono',monospace;color:${r.check_in?'var(--green)':'var(--text2)'};font-weight:600">${fmtT(r.check_in)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--text2)">${fmtT(r.check_out)}</td><td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">${hrs?hrs+'h':'—'}</td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+async function setupCheckin(){
+  const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+  g('cie').innerHTML='<option value="">— select —</option>'+(E||[]).map(e=>`<option value="${e.id}">${e.first_name} ${e.last_name}</option>`).join('');
+  g('cist').value='present';g('ciin').value='';g('ciout').value='';
+}
+async function saveCheckin(){
+  const emp=g('cie').value;if(!emp){toast('Select employee','error');return;}
+  const today=new Date().toISOString().slice(0,10);
+  const makeTs=t=>t?`${today}T${t}:00+04:00`:null;
+  const pay={employee_id:emp,work_date:today,status:g('cist').value,check_in:makeTs(g('ciin').value),check_out:makeTs(g('ciout').value)};
+  const{error}=await sb.from('attendance').upsert(pay,{onConflict:'employee_id,work_date'});
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('✓ Attendance saved!');cm('checkin');await lAtt();
+}
+
+// ========== OVERTIME ==========
+async function lOT(){
+  const{data}=await sb.from('overtime').select('*,employees(first_name,last_name)').order('work_date',{ascending:false});
+  const rows=data||[];
+  g('ot-wrap').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Date</th><th>Hours</th><th>Reason</th><th>Status</th></tr></thead><tbody>${
+    rows.map((r,i)=>`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}" style="font-size:10px">${ini(r.employees?.first_name,r.employees?.last_name)}</div><div class="emp-n">${r.employees?.first_name||'?'} ${r.employees?.last_name||''}</div></div></td><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${fmtD(r.work_date)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--yellow);font-weight:700">${r.hours}h</td><td style="font-size:11.5px;color:var(--text2)">${r.reason||'—'}</td><td>${r.approved?'<span class="badge b-green">approved</span>':'<span class="badge b-yellow">pending</span>'}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">No overtime records</td></tr>'
+  }</tbody></table>`;
+}
+async function setupOT(){
+  const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+  g('ote').innerHTML='<option value="">— select —</option>'+(E||[]).map(e=>`<option value="${e.id}">${e.first_name} ${e.last_name}</option>`).join('');
+  g('otd').value=new Date().toISOString().slice(0,10);g('oth').value='';g('otr').value='';
+}
+async function saveOvertime(){
+  const emp=g('ote').value;if(!emp){toast('აირჩიეთ თანამშრომელი','error');return;}
+  const h=parseFloat(g('oth').value)||0;if(h<=0){toast('მიუთითეთ საათები (>0)','error');return;}
+  const{error}=await sb.from('overtime').insert({employee_id:emp,work_date:g('otd').value,hours:h,reason:g('otr').value.trim()||null});
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('✓ Overtime recorded!');cm('overtime');await lOT();
+}
+
+function rowNet(r){return gel(r.base_salary)+gel(r.bonus)+gel(r.overtime_pay)-gel(r.deduction);}
+function genPaystub(i){
+  const row=PAY_ROWS[i];
+  const JsPDF=(window.jspdf&&window.jspdf.jsPDF)||window.jsPDF;
+  if(!row||!JsPDF){toast('PDF ბიბლიოთეკა ვერ ჩაიტვირთა','error');return;}
+  const net=row._net!=null?row._net:gel(row.net_salary);
+  const doc=new JsPDF({unit:'pt',format:'a4'});
+  const W=doc.internal.pageSize.getWidth(),x=48,y0=56;
+  doc.setFillColor(248,246,252);doc.rect(0,0,W,128,'F');
+  doc.setFillColor(91,79,224);doc.rect(0,0,W,4,'F');
+  doc.setTextColor(94,90,114);doc.setFontSize(9);doc.text('Restaurant Operations OS · HRCore',x,y0);
+  doc.setTextColor(22,22,31);doc.setFontSize(18);doc.text('Paystub',x,y0+26);
+  doc.setFontSize(10);doc.setTextColor(94,90,114);
+  doc.text(`პერიოდი: ${row.period_year}-${String(row.period_month).padStart(2,'0')}`,x,y0+48);
+  doc.setTextColor(22,22,31);let y=y0+100;
+  doc.setFontSize(11);doc.text(`თანამშრომელი: ${row.full_name||'—'}`,x,y);y+=22;
+  doc.text(`განყოფილება: ${row.department||'—'}`,x,y);y+=28;
+  doc.setFont('helvetica','normal');
+  const lines=[['ბაზა','₾'+gel(row.base_salary).toFixed(2)],['ბონუსი','₾'+gel(row.bonus).toFixed(2)],['ოვერთაიმი','₾'+gel(row.overtime_pay).toFixed(2)],['გამოქვითვა / ჯარიმა','-₾'+gel(row.deduction).toFixed(2)],['სუფთა ხელფასი','₾'+net.toFixed(2)]];
+  lines.forEach(([a,b])=>{doc.setTextColor(94,90,114);doc.text(a,x,y);doc.setTextColor(22,22,31);doc.text(b,W-x-120,y,{align:'right'});y+=18;});
+  y+=10;doc.setDrawColor(226,221,237);doc.line(x,y,W-x,y);y+=16;
+  doc.setFontSize(9);doc.setTextColor(158,153,176);doc.text(`საათები: ${gel(row.total_hours)}h · გენერირებულია ${new Date().toLocaleString('ka-GE')}`,x,y);
+  doc.save(`paystub-${(row.full_name||'employee').replace(/\s+/g,'_')}-${row.period_year}-${row.period_month}.pdf`);
+  toast('PDF მზადაა','success');
+}
+
+// ========== PAYROLL ==========
+async function lPayroll(){
+  const dp=dashPeriod();
+  const payp=g('pay-pill');if(payp)payp.textContent=`${KA_MONTHS[dp.month-1]} ${dp.year}`;
+  const{data}=await sb.from('salary_summary').select('*').eq('period_year',dp.year).eq('period_month',dp.month);
+  const R=data||[];
+  PAY_ROWS=R.map(r=>({...r,_net:rowNet(r)}));
+  const tot=R.reduce((s,r)=>s+gel(r.base_salary),0),bon=R.reduce((s,r)=>s+gel(r.bonus),0),ded=R.reduce((s,r)=>s+gel(r.deduction),0);
+  const net=R.reduce((s,r)=>s+(rowNet(r)),0);
+  g('pay-t').textContent='₾'+tot.toLocaleString();g('pay-b').textContent='₾'+bon.toLocaleString();g('pay-d').textContent='₾'+ded.toLocaleString();g('pay-n').textContent='₾'+net.toLocaleString();
+  g('pay-wrap').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Dept</th><th>Base</th><th>Bonus</th><th>OT</th><th>Ded.</th><th>Net</th><th>Hrs</th><th>Status</th><th>PDF</th></tr></thead><tbody>${
+    R.map((r,i)=>{const n=rowNet(r);return`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}" style="font-size:10px">${ini(r.full_name?.split(' ')[0],r.full_name?.split(' ')[1])}</div><div class="emp-n">${r.full_name}</div></div></td><td><span class="badge b-purple" style="font-size:10px">${r.department||'—'}</span></td><td style="font-family:'JetBrains Mono',monospace;font-size:12px">₾${gel(r.base_salary).toLocaleString()}</td><td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--green)">+₾${gel(r.bonus).toLocaleString()}</td><td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent4)">+₾${gel(r.overtime_pay).toLocaleString()}</td><td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--red)">-₾${gel(r.deduction).toLocaleString()}</td><td style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:var(--green)">₾${n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td style="font-family:'JetBrains Mono',monospace;font-size:11px">${r.total_hours}h</td><td>${r.paid?'<span class="badge b-green">paid</span>':'<span class="badge b-yellow">pending</span>'}</td><td><button type="button" class="btn btn-ghost btn-xs" onclick="genPaystub(${i})">PDF</button></td></tr>`;}).join('')||'<tr><td colspan="10" class="empty">No records</td></tr>'
+  }</tbody></table>`;
+}
+async function setupSalary(){
+  const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+  g('se').innerHTML='<option value="">— select —</option>'+(E||[]).map(e=>`<option value="${e.id}">${e.first_name} ${e.last_name}</option>`).join('');
+  ['sbas','sbon','sded','shrs','snote','sotp'].forEach(i=>{if(g(i))g(i).value='';});
+  updateNetPreview();
+  ['sbas','sbon','sded','sotp'].forEach(id=>{const el=g(id);if(el&&!el._netL){el._netL=1;el.addEventListener('input',updateNetPreview);}});
+}
+async function saveSal(){
+  const emp=g('se').value;if(!emp){toast('აირჩიეთ თანამშრომელი','error');return;}
+  const py=parseInt(g('syr').value,10),pm=parseInt(g('smo').value,10);
+  const bas=parseFloat(g('sbas').value)||0,bon=parseFloat(g('sbon').value)||0,ot=parseFloat(g('sotp').value)||0,ded=parseFloat(g('sded').value)||0;
+  if(bas<=0&&bon<=0&&ot<=0){toast('შეიყვანეთ ბაზა, ბონუსი ან ოვერთაიმი','error');return;}
+  const{data:ex}=await sb.from('salary_records').select('id').eq('employee_id',emp).eq('period_year',py).eq('period_month',pm).limit(1).maybeSingle();
+  if(ex){toast('ამ თვის ხელფასი უკვე ჩაწერილია','error');return;}
+  const net=bas+bon+ot-ded;
+  const payload={employee_id:emp,period_year:py,period_month:pm,base_salary:bas,bonus:bon,deduction:ded,overtime_pay:ot,total_hours:parseFloat(g('shrs').value)||0,note:g('snote').value.trim()||null};
+  if(net!==undefined)payload.net_salary=net;
+  const{error}=await sb.from('salary_records').insert(payload);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('✓ Salary saved!');cm('salary');await lPayroll();
+}
+
+// ========== REQUESTS ==========
+async function lReqs(){
+  const{data}=await sb.from('pending_requests').select('*');const R=data||[];
+  const rb=g('req-nb');if(R.length){rb.style.display='inline';rb.textContent=R.length;}else rb.style.display='none';
+  g('req-cnt').textContent=R.length?R.length+' pending':'';
+  g('req-wrap').innerHTML=R.length===0?'<div class="empty">✓ All requests reviewed</div>':
+    R.map(r=>`<div class="ritem" id="ri-${r.id}" style="padding:14px 18px"><div style="font-size:20px;flex-shrink:0">${{vacation:'🌴',shift_change:'🔄',shift_swap:'🔁',day_off:'📅',sick_leave:'📋',other:'📌'}[r.type]||'📝'}</div><div style="flex:1"><div style="font-weight:600;font-size:13px">${r.full_name} — ${RL(r.type)}</div><div style="font-size:11px;color:var(--text2)">${r.description||''}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${fmtD(r.start_date)}${r.end_date&&r.end_date!==r.start_date?' → '+fmtD(r.end_date):''}</div></div><div style="display:flex;gap:6px"><button class="btn btn-success btn-sm" onclick="uReq('${r.id}','approved')">✓ Approve</button><button class="btn btn-danger btn-sm" onclick="uReq('${r.id}','rejected')">✗ Reject</button></div></div>`).join('');
+}
+async function uReq(id,status){
+  await sb.from('requests').update({status,reviewed_at:new Date().toISOString()}).eq('id',id);
+  toast(status==='approved'?'✓ Approved!':'✗ Rejected',status==='approved'?'success':'error');
+  g('ri-'+id)?.remove();await lReqs();await lDash();
+}
+
+// ========== DOCUMENTS ==========
+async function lDocs(){
+  const{data}=await sb.from('employee_documents').select('*,employees(first_name,last_name)').order('created_at',{ascending:false});
+  const rows=data||[];
+  g('doc-wrap').innerHTML=`<table class="tbl"><thead><tr><th>Employee</th><th>Type</th><th>Title</th><th>Expiry</th><th>Note</th><th>Actions</th></tr></thead><tbody>${
+    rows.map((r,i)=>{
+      const exp=r.expiry_date?new Date(r.expiry_date):null;
+      const expired=exp&&exp<new Date();
+      return`<tr><td><div class="tbl-name"><div class="emp-av av${i%8}" style="font-size:10px">${ini(r.employees?.first_name,r.employees?.last_name)}</div><div class="emp-n">${r.employees?.first_name||'?'} ${r.employees?.last_name||''}</div></div></td><td><span style="font-size:16px">${docL(r.doc_type)}</span></td><td style="font-size:12.5px;font-weight:600">${r.title}</td><td><span class="badge ${expired?'b-red':'b-green'}" style="font-family:'JetBrains Mono',monospace;font-size:10px">${exp?fmtD(r.expiry_date):'—'}</span></td><td style="font-size:11px;color:var(--text2)">${r.note||'—'}</td><td><button class="icon-btn del" onclick="delDoc('${r.id}')">✕</button></td></tr>`;
+    }).join('')||'<tr><td colspan="6" class="empty">No documents</td></tr>'
+  }</tbody></table>`;
+}
+async function setupDoc(){
+  const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+  g('doce').innerHTML='<option value="">— select —</option>'+(E||[]).map(e=>`<option value="${e.id}">${e.first_name} ${e.last_name}</option>`).join('');
+  g('docexp').value='';g('docnote').value='';g('doctit').value='';
+}
+async function saveDoc(){
+  const emp=g('doce').value,title=g('doctit').value.trim();if(!emp||!title){toast('Fill required fields','error');return;}
+  const{error}=await sb.from('employee_documents').insert({employee_id:emp,doc_type:g('doct').value,title,expiry_date:g('docexp').value||null,note:g('docnote').value.trim()||null});
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('✓ Document added!');cm('doc');await lDocs();
+}
+function delDoc(id){
+  g('conf-txt').textContent='Delete this document?';
+  g('conf-ok').onclick=async()=>{await sb.from('employee_documents').delete().eq('id',id);toast('Deleted');cm('conf');await lDocs();};
+  g('m-conf').classList.add('open');
+}
+
+// ========== DISCIPLINARY ==========
+async function lDisc(){
+  const{data}=await sb.from('disciplinary').select('*,employees(first_name,last_name)').order('issued_at',{ascending:false});
+  const rows=data||[];
+  g('disc-wrap').innerHTML=rows.map(r=>`<div class="disc-item"><div class="disc-icon">${dtL(r.type)}</div><div style="flex:1"><div style="font-weight:600;font-size:13px">${r.employees?.first_name||'?'} ${r.employees?.last_name||''}</div><div style="font-size:12px;color:var(--text2);margin-top:2px">${r.reason}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${fmtD(r.issued_at)} · ${r.type}</div></div><button class="icon-btn del" onclick="delDisc('${r.id}')">✕</button></div>`).join('')||'<div class="empty">No disciplinary records</div>';
+}
+async function setupDisc(){
+  const{data:E}=await sb.from('employee_details').select('id,first_name,last_name').order('last_name');
+  g('disce').innerHTML='<option value="">— select —</option>'+(E||[]).map(e=>`<option value="${e.id}">${e.first_name} ${e.last_name}</option>`).join('');
+  g('discrea').value='';g('discdt').value=new Date().toISOString().slice(0,10);
+}
+async function saveDisc(){
+  const emp=g('disce').value,reason=g('discrea').value.trim();if(!emp||!reason){toast('Fill all fields','error');return;}
+  const typ=g('disctyp').value;
+  const{error}=await sb.from('disciplinary').insert({employee_id:emp,type:typ,reason,issued_at:g('discdt').value||null});
+  if(error){toast('Error: '+error.message,'error');return;}
+  await applyKpiPenaltyFromDisc(emp,typ);
+  toast('⚠️ Recorded! KPI updated.','info');cm('disc');await lDisc();
+}
+function delDisc(id){
+  g('conf-txt').textContent='Delete this disciplinary record?';
+  g('conf-ok').onclick=async()=>{await sb.from('disciplinary').delete().eq('id',id);toast('Deleted');cm('conf');await lDisc();};
+  g('m-conf').classList.add('open');
+}
+
+function parseIssued(raw){
+  let arr=[];
+  if(Array.isArray(raw))arr=raw;
+  else if(raw&&typeof raw==='object'){try{arr=Object.entries(raw).map(([k,v])=>({key:k,issued:!!v}));}catch(e){arr=[]}}
+  else if(typeof raw==='string'){try{const p=JSON.parse(raw||'[]');arr=Array.isArray(p)?p:[];}catch(e){arr=[]}}
+  const m=new Map((arr||[]).map(x=>[x.key,!!x.issued]));
+  return ISSUE_DEF.map(d=>({...d,issued:!!m.get(d.key)}));
+}
+async function openProfile(id){
+  PROF_ID=id;
+  g('m-profile').classList.add('open');
+  g('prof-body').innerHTML='<div class="loader"><div class="spin"></div>loading...</div>';
+  const[{data:ed},{data:discRows}]=await Promise.all([
+    sb.from('employee_details').select('*').eq('id',id).maybeSingle(),
+    sb.from('disciplinary').select('*').eq('employee_id',id).order('issued_at',{ascending:false})
+  ]);
+  const e=ed||{};const discs=discRows||[];
+  g('prof-title').textContent=`${e.first_name||''} ${e.last_name||''}`.trim()||'პროფილი';
+  const issued=parseIssued(e.issued_items);
+  let hcBanner='';
+  if(e.health_certificate_expiry){const d=new Date(e.health_certificate_expiry),days=Math.ceil((d-Date.now())/864e5);
+    if(days<0||days<=7)hcBanner=`<div style="padding:12px 14px;border-radius:10px;margin-bottom:14px;background:rgba(255,71,87,0.12);border:1px solid rgba(255,71,87,0.4);font-size:12px;font-weight:600;color:var(--red)">⚠️ ჯანმრთელობის ცნობა: ${days<0?'ვადაგასული!':days+' დღეში ექსპირაცია (≤7 დღე)'}</div>`;}
+  const discHtml=discs.length?discs.map(r=>`<div class="disc-item"><div class="disc-icon">${dtL(r.type)}</div><div style="flex:1"><div style="font-weight:600;font-size:12.5px">${r.type}</div><div style="font-size:12px;color:var(--text2);margin-top:4px">${(r.reason||'').replace(/</g,'&lt;')}</div><div style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:4px">${fmtD(r.issued_at)}</div></div></div>`).join(''):'<div class="empty" style="padding:16px">დისციპლინარული ჩანაწერები არ არის</div>';
+  g('prof-body').innerHTML=`${hcBanner}
+    <div class="profile-section"><h4>კომპლიანსი</h4>
+      <div class="prof-grid">
+        <div><span style="color:var(--text2)">ID</span><div style="font-family:'JetBrains Mono',monospace;margin-top:2px">${e.national_id||'—'}</div></div>
+        <div><span style="color:var(--text2)">ჯანმ. ცნობა</span><div style="margin-top:4px">${healthCertBadge(e.health_certificate_expiry)}</div></div>
+        <div><span style="color:var(--text2)">კონტრაქტი</span><div style="font-family:'JetBrains Mono',monospace;font-size:11px;margin-top:2px">${fmtD(e.contract_start_date)} → ${fmtD(e.contract_end_date)}</div></div>
+        <div><span style="color:var(--text2)">სტატუსი</span><div style="margin-top:4px">${sBadge(e.status)}</div></div>
+      </div>
+      <div style="margin-top:12px"><button type="button" class="btn btn-ghost btn-sm" onclick="cm('profile');editEmp('${id}')">✏ რედაქტირება (ფორმა)</button></div>
+    </div>
+    <div class="profile-section"><h4>დისციპლინა / შენიშვნები</h4>${discHtml}</div>
+    <div class="profile-section"><h4>ინვენტარი / უნიფორმა</h4><div class="issue-grid">${issued.map(x=>`<div class="issue-item"><span>${x.label}</span><label class="switch"><input type="checkbox" id="prof-issue-${x.key}" ${x.issued?'checked':''}><span class="slider"></span></label></div>`).join('')}</div></div>`;
+}
+async function saveProfileIssued(){
+  if(!PROF_ID){toast('პროფილი არ არის ნაჩვენები','error');return;}
+  const list=ISSUE_DEF.map(d=>({key:d.key,issued:!!g('prof-issue-'+d.key)?.checked}));
+  const{error}=await sb.from('employees').update({issued_items:list}).eq('id',PROF_ID);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast('✓ ინვენტარი შენახულია');await lStaff();
+}
+
+// ========== NOTICES ==========
+async function lNot(){
+  const{data}=await sb.from('notices').select('*').order('created_at',{ascending:false});
+  g('not-wrap').innerHTML=(data||[]).map(n=>`<div class="nitem" id="ni-${n.id}" style="padding:14px 18px"><div class="ndot" style="background:${prioC[n.priority]};width:8px;height:8px;margin-top:6px;flex-shrink:0;border-radius:50%"></div><div class="nitem-body"><div class="nitem-title">${n.title}</div><div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5">${n.body||''}</div><div class="nitem-time">${new Date(n.created_at).toLocaleDateString('ka-GE')} · ${n.priority}</div></div><div style="display:flex;gap:5px;flex-shrink:0"><button class="icon-btn" onclick="editNot('${n.id}')">✏</button><button class="icon-btn del" onclick="delNot('${n.id}')">✕</button></div></div>`).join('')||'<div class="empty">No notices</div>';
+}
+function setupNotice(id=null){g('nid').value=id||'';g('not-mt').textContent=id?'Edit Notice':'New Notice';if(!id){g('ntit').value='';g('nbod').value='';g('nprio').value='normal';}}
+async function editNot(id){const{data:n}=await sb.from('notices').select('*').eq('id',id).single();if(n){g('nid').value=n.id;g('ntit').value=n.title;g('nbod').value=n.body||'';g('nprio').value=n.priority;g('not-mt').textContent='Edit Notice';}g('m-notice').classList.add('open');}
+async function saveNotice(){
+  const id=g('nid').value,title=g('ntit').value.trim();if(!title){toast('Add title','error');return;}
+  const pay={title,body:g('nbod').value.trim(),priority:g('nprio').value};
+  const{error}=id?await sb.from('notices').update(pay).eq('id',id):await sb.from('notices').insert(pay);
+  if(error){toast('Error: '+error.message,'error');return;}
+  toast(id?'✓ Updated!':'✓ Published!');cm('notice');await lNot();await lDash();
+}
+function delNot(id){
+  g('conf-txt').textContent='Delete this notice?';
+  g('conf-ok').onclick=async()=>{await sb.from('notices').delete().eq('id',id);toast('Deleted');cm('conf');await lNot();await lDash();};
+  g('m-conf').classList.add('open');
+}
+
+// ========== SETTINGS ==========
+async function lSettings(){
+  const[psR,shR,dR,counts]=await Promise.all([
+    sb.from('payroll_settings').select('*').eq('active',true),
+    sb.from('shifts').select('*').order('start_time'),
+    sb.from('departments').select('*').order('name'),
+    Promise.all([
+      sb.from('employees').select('*',{count:'exact',head:true}),
+      sb.from('attendance').select('*',{count:'exact',head:true}),
+      sb.from('salary_records').select('*',{count:'exact',head:true}),
+      sb.from('performance_reviews').select('*',{count:'exact',head:true}),
+      sb.from('trainings').select('*',{count:'exact',head:true}),
+      sb.from('requests').select('*',{count:'exact',head:true}),
+      sb.from('notices').select('*',{count:'exact',head:true}),
+      sb.from('disciplinary').select('*',{count:'exact',head:true}),
+    ])
+  ]);
+  const PS=psR.data||[],SH=shR.data||[],D=dR.data||[];
+  g('pay-settings').innerHTML=`<table class="tbl"><thead><tr><th>Name</th><th>Value</th><th>Type</th></tr></thead><tbody>${PS.map(p=>`<tr><td style="font-size:12.5px">${p.name}</td><td style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--accent)">${p.value}${p.type==='tax'||p.type==='insurance'?'%':p.type==='overtime_rate'?'x':''}</td><td><span class="badge b-gray" style="font-size:9.5px">${p.type}</span></td></tr>`).join('')}</tbody></table>`;
+  g('shift-settings').innerHTML=`<table class="tbl"><thead><tr><th>Shift</th><th>Start</th><th>End</th></tr></thead><tbody>${SH.map(s=>`<tr><td style="font-size:12.5px;font-weight:600">${s.name}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--green)">${s.start_time?.slice(0,5)}</td><td style="font-family:'JetBrains Mono',monospace;color:var(--accent2)">${s.end_time?.slice(0,5)}</td></tr>`).join('')}</tbody></table>`;
+  g('dept-settings').innerHTML=`<div style="padding:14px;display:flex;flex-direction:column;gap:8px">${D.map(d=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px"><div style="font-weight:600;font-size:12.5px">${d.name}</div></div>`).join('')}</div>`;
+  const labels=['Employees','Attendance','Salary','Reviews','Trainings','Requests','Notices','Disciplinary'];
+  const vals=counts.map(c=>c.count||0);
+  g('db-stats').innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px">${labels.map((l,i)=>`<div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px"><div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);font-family:'JetBrains Mono',monospace;margin-bottom:4px">${l}</div><div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:800;color:${AVC[i%AVC.length]}">${vals[i]}</div></div>`).join('')}</div>`;
+}
+
+// INIT
+sb.auth.onAuthStateChange((ev,session)=>{
+  if(ev==='SIGNED_OUT'){USER_ROLE=null;MY_EMPLOYEE_ID=null;AUTH_USER=null;g('auth-screen')?.classList.remove('hidden');g('app-admin')?.classList.add('hidden');g('app-employee')?.classList.remove('active');const ag=g('admin-global-actions');if(ag)ag.style.display='none';}
+  else if(ev==='SIGNED_IN'&&session)initAuth();
+});
+function syncPeriodUi(){
+  const dp=dashPeriod(),q=Math.floor((dp.month-1)/3)+1;
+  const pp=g('perf-pill'),payp=g('pay-pill');
+  if(pp)pp.textContent=`Q${q} ${dp.year}`;
+  if(payp)payp.textContent=`${KA_MONTHS[dp.month-1]} ${dp.year}`;
+  if(g('syr')){g('syr').value=dp.year;g('smo').value=dp.month;}
+  if(g('ryr')){g('ryr').value=dp.year;g('rq').value=String(q);}
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  syncPeriodUi();
+  document.querySelectorAll('.topbar').forEach(tb=>{
+    if(tb.querySelector('.menu-toggle'))return;
+    const btn=document.createElement('button');
+    btn.type='button';btn.className='menu-toggle';btn.setAttribute('aria-label','მენიუ');btn.textContent='☰';
+    btn.addEventListener('click',e=>{e.stopPropagation();toggleSidebar();});
+    tb.insertBefore(btn,tb.firstChild);
+  });
+  initAuth();
+  if(g('att-today'))g('att-today').textContent=new Date().toLocaleDateString('ka-GE',{weekday:'long',day:'numeric',month:'long'});
+});
+</script>
+</body>
+</html>
