@@ -230,3 +230,27 @@ CREATE POLICY "notices_admin_delete" ON public.notices FOR DELETE USING (public.
 -- RLS rollout: if the app breaks, temporarily DISABLE RLS on a table and add
 -- policies incrementally. Anonymous (anon) key + no session = no row access.
 -- -----------------------------------------------------------------------------
+--
+-- PIN-only app (no Supabase Auth): run also restaurant-hr/supabase-rls-anon-pin-mode.sql
+-- or use the hrcore_anon_pin block from supabase-setup-from-zero.sql (end of file).
+
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.profiles;
+CREATE POLICY "hrcore_anon_pin" ON public.profiles FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.employees;
+CREATE POLICY "hrcore_anon_pin" ON public.employees FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.salary_records;
+CREATE POLICY "hrcore_anon_pin" ON public.salary_records FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.payroll_logs;
+CREATE POLICY "hrcore_anon_pin" ON public.payroll_logs FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.attendance;
+CREATE POLICY "hrcore_anon_pin" ON public.attendance FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.requests;
+CREATE POLICY "hrcore_anon_pin" ON public.requests FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.notice_reads;
+CREATE POLICY "hrcore_anon_pin" ON public.notice_reads FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.operational_daily;
+CREATE POLICY "hrcore_anon_pin" ON public.operational_daily FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.schedule;
+CREATE POLICY "hrcore_anon_pin" ON public.schedule FOR ALL TO anon USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "hrcore_anon_pin" ON public.notices;
+CREATE POLICY "hrcore_anon_pin" ON public.notices FOR ALL TO anon USING (true) WITH CHECK (true);
